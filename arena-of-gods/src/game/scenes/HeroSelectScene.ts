@@ -11,6 +11,8 @@ const HEROES = [
 
 export default class HeroSelectScene extends Phaser.Scene {
   private playerName!: string
+  private player1Name!: string
+  private player2Name!: string
   private selectedHeroId: string | null = null
   private heroCards: Phaser.GameObjects.Container[] = []
 
@@ -18,8 +20,10 @@ export default class HeroSelectScene extends Phaser.Scene {
     super('HeroSelectScene')
   }
 
-  init(data: { player1Name: string }) {
+  init(data: { player1Name: string; player2Name?: string }) {
     this.playerName = data.player1Name
+    this.player1Name = data.player1Name
+    this.player2Name = data.player2Name || 'Player 2'
     this.selectedHeroId = null
     this.heroCards = []
   }
