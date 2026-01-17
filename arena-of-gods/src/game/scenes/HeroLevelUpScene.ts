@@ -1,22 +1,8 @@
 import Phaser from 'phaser'
+import { HEROES } from '../constants/heroes'
+import type { HeroAttributes } from '../constants/heroes'
 
 const BACKGROUNDS = ['forest', 'river', 'volcanic_river', 'plains', 'fortress']
-const HEROES = [
-  { id: 'brutus', name: 'Brutus' },
-  { id: 'kael', name: 'Kael' },
-  { id: 'lyra', name: 'Lyra' },
-  { id: 'thea', name: 'Thea' },
-  { id: 'marcus', name: 'Marcus' }
-]
-
-interface HeroAttributes {
-  strength: number
-  defense: number
-  intelligence: number
-  accuracy: number
-  agility: number
-  stamina: number
-}
 
 export default class HeroLevelUpScene extends Phaser.Scene {
   private player1Name!: string
@@ -24,12 +10,14 @@ export default class HeroLevelUpScene extends Phaser.Scene {
   private playerName!: string
   private heroes: HeroAttributes[] = []
   private currentHeroIndex: number = 0
+  private credits: number = 15
 
   // UI elements
   private heroSlots: Phaser.GameObjects.Container[] = []
   private heroImage!: Phaser.GameObjects.Image
   private attributeValueTexts: Phaser.GameObjects.Text[] = []
   private heroNameText!: Phaser.GameObjects.Text
+  private creditsText!: Phaser.GameObjects.Text
 
   constructor() {
     super('HeroLevelUpScene')
@@ -40,15 +28,18 @@ export default class HeroLevelUpScene extends Phaser.Scene {
     this.player2Name = data.player2Name || 'Player 2'
     this.playerName = data.currentPlayer || data.player1Name
 
-    // Initialize all heroes with default attributes
-    this.heroes = Array(5).fill(null).map(() => ({
-      strength: 1,
-      defense: 1,
-      intelligence: 1,
-      accuracy: 1,
-      agility: 1,
-      stamina: 1
+    // Initialize all heroes with their unique default attributes
+    this.heroes = HEROES.map(hero => ({
+      strength: hero.defaultAttributes.strength,
+      defense: hero.defaultAttributes.defense,
+      intelligence: hero.defaultAttributes.intelligence,
+      accuracy: hero.defaultAttributes.accuracy,
+      agility: hero.defaultAttributes.agility,
+      stamina: hero.defaultAttributes.stamina
     }))
+
+    // Each player starts with 15 credits
+    this.credits = 15
 
     this.heroSlots = []
     this.attributeValueTexts = []
@@ -69,10 +60,23 @@ export default class HeroLevelUpScene extends Phaser.Scene {
   create() {
     const { width, height } = this.cameras.main
 
+    // Fade in transition
+    this.cameras.main.fadeIn(500, 0, 0, 0)
+
     // Random background
     const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
     const bg = this.add.image(0, 0, `bg_${randomBg}`).setOrigin(0, 0)
     bg.setDisplaySize(width, height)
+
+    // Subtle background animation
+    this.tweens.add({
+      targets: bg,
+      alpha: 0.95,
+      duration: 3000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    })
 
     // Title banner at top
     const bannerHeight = 100
@@ -101,6 +105,16 @@ export default class HeroLevelUpScene extends Phaser.Scene {
         color: '#e2e8f0'
       })
       .setOrigin(0.5)
+
+    // Credits display
+    this.creditsText = this.add
+      .text(width / 2, 100, `Credits: ${this.credits}`, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '12px',
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+      .setShadow(2, 2, '#000000', 2)
 
     // Hero selection slots
     const slotSize = 70
@@ -217,9 +231,38 @@ export default class HeroLevelUpScene extends Phaser.Scene {
       minusBtn.on('pointerover', () => minusBtn.setFillStyle(0xb91c1c))
       minusBtn.on('pointerout', () => minusBtn.setFillStyle(0x991b1b))
       minusBtn.on('pointerdown', () => {
-        if (this.heroes[this.currentHeroIndex][key] > 1) {
-          this.heroes[this.currentHeroIndex][key]--
+        const hero = this.heroes[this.currentHeroIndex]
+        const defaultAttr = HEROES[this.currentHeroIndex].defaultAttributes[key]
+        
+        // Can only decrease if above default value
+        if (hero[key] > defaultAttr) {
+          hero[key]--
+          this.credits++ // Return credit when decreasing
+          
+          // Button press animation
+          this.tweens.add({
+            targets: minusBtn,
+            scaleX: 0.9,
+            scaleY: 0.9,
+            duration: 100,
+            yoyo: true,
+            ease: 'Power2'
+          })
+          
+          // Particle effect
+          this.createAttributeParticle(attrX + 60, y, 0x44ff44, false)
+          
           this.updateAttributeDisplay()
+          this.updateCreditsDisplay()
+        } else {
+          // Shake animation when can't decrease
+          this.tweens.add({
+            targets: minusBtn,
+            x: attrX + 60 + (Math.random() - 0.5) * 5,
+            duration: 100,
+            repeat: 3,
+            yoyo: true
+          })
         }
       })
 
@@ -247,15 +290,71 @@ export default class HeroLevelUpScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
 
-      plusBtn.on('pointerover', () => plusBtn.setFillStyle(0x15803d))
-      plusBtn.on('pointerout', () => plusBtn.setFillStyle(0x166534))
+      plusBtn.on('pointerover', () => {
+        if (this.credits > 0) {
+          plusBtn.setFillStyle(0x15803d)
+        } else {
+          plusBtn.setFillStyle(0x374151) // Gray when no credits
+        }
+      })
+      plusBtn.on('pointerout', () => {
+        if (this.credits > 0) {
+          plusBtn.setFillStyle(0x166534)
+        } else {
+          plusBtn.setFillStyle(0x374151) // Gray when no credits
+        }
+      })
       plusBtn.on('pointerdown', () => {
-        this.heroes[this.currentHeroIndex][key]++
-        this.updateAttributeDisplay()
+        if (this.credits > 0) {
+          this.heroes[this.currentHeroIndex][key]++
+          this.credits--
+          
+          // Button press animation
+          this.tweens.add({
+            targets: plusBtn,
+            scaleX: 0.9,
+            scaleY: 0.9,
+            duration: 100,
+            yoyo: true,
+            ease: 'Power2'
+          })
+          
+          // Particle effect
+          this.createAttributeParticle(attrX + 140, y, 0xfbbf24, true)
+          
+          // Hero image glow effect
+          if (this.heroImage) {
+            this.tweens.add({
+              targets: this.heroImage,
+              scaleX: 1.1,
+              scaleY: 1.1,
+              duration: 200,
+              yoyo: true,
+              ease: 'Back.easeOut'
+            })
+          }
+          
+          this.updateAttributeDisplay()
+          this.updateCreditsDisplay()
+          
+          // Update button color after spending credit
+          if (this.credits === 0) {
+            plusBtn.setFillStyle(0x374151)
+          }
+        } else {
+          // Shake animation when no credits
+          this.tweens.add({
+            targets: plusBtn,
+            x: attrX + 140 + (Math.random() - 0.5) * 5,
+            duration: 100,
+            repeat: 3,
+            yoyo: true
+          })
+        }
       })
     })
 
-    // Bottom panel with Next button
+    // Bottom panel with buttons
     const bottomPanelBg = this.add.graphics()
     bottomPanelBg.fillGradientStyle(0x0f172a, 0x0f172a, 0x0f172a, 0x0f172a, 0, 0, 1, 1)
     bottomPanelBg.fillRect(0, height - 80, width, 80)
@@ -263,29 +362,29 @@ export default class HeroLevelUpScene extends Phaser.Scene {
     // Decorative gold line above bottom panel
     this.add.rectangle(width / 2, height - 80, width, 2, 0xfbbf24, 0.5)
 
-    // Next button
-    const buttonWidth = 200
-    const buttonHeight = 50
+    // Back button (left)
+    const backButtonWidth = 150
+    const backButtonHeight = 50
     const buttonY = height - 45
 
-    const button = this.add
-      .rectangle(width / 2, buttonY, buttonWidth, buttonHeight, 0x16a34a)
-      .setStrokeStyle(3, 0x22c55e)
+    const backButton = this.add
+      .rectangle(width / 2 - 200, buttonY, backButtonWidth, backButtonHeight, 0x6b7280)
+      .setStrokeStyle(3, 0x9ca3af)
       .setInteractive({ useHandCursor: true })
 
-    const buttonText = this.add
-      .text(width / 2, buttonY, 'NEXT', {
+    const backButtonText = this.add
+      .text(width / 2 - 200, buttonY, 'BACK', {
         fontFamily: '"Press Start 2P"',
-        fontSize: '16px',
+        fontSize: '14px',
         color: '#ffffff'
       })
       .setOrigin(0.5)
       .setShadow(2, 2, '#000000', 2)
 
-    button.on('pointerover', () => {
-      button.setFillStyle(0x22c55e)
+    backButton.on('pointerover', () => {
+      backButton.setFillStyle(0x9ca3af)
       this.tweens.add({
-        targets: [button, buttonText],
+        targets: [backButton, backButtonText],
         scaleX: 1.05,
         scaleY: 1.05,
         duration: 100,
@@ -293,10 +392,10 @@ export default class HeroLevelUpScene extends Phaser.Scene {
       })
     })
 
-    button.on('pointerout', () => {
-      button.setFillStyle(0x16a34a)
+    backButton.on('pointerout', () => {
+      backButton.setFillStyle(0x6b7280)
       this.tweens.add({
-        targets: [button, buttonText],
+        targets: [backButton, backButtonText],
         scaleX: 1,
         scaleY: 1,
         duration: 100,
@@ -304,17 +403,102 @@ export default class HeroLevelUpScene extends Phaser.Scene {
       })
     })
 
-    button.on('pointerdown', () => {
-      this.proceedToNextScene()
+    backButton.on('pointerdown', () => {
+      this.cameras.main.fadeOut(300, 0, 0, 0)
+      this.time.delayedCall(300, () => {
+        if (this.playerName === this.player1Name) {
+          // Go back to hero selection
+          this.scene.start('HeroSelectScene', {
+            player1Name: this.player1Name,
+            player2Name: this.player2Name
+          })
+        } else {
+          // Go back to Player 2 hero selection
+          this.scene.start('Player2HeroSelectScene', {
+            player1Name: this.player1Name,
+            player2Name: this.player2Name
+          })
+        }
+      })
+    })
+
+    // Next button (right)
+    const nextButtonWidth = 200
+    const nextButton = this.add
+      .rectangle(width / 2 + 200, buttonY, nextButtonWidth, backButtonHeight, 0x16a34a)
+      .setStrokeStyle(3, 0x22c55e)
+      .setInteractive({ useHandCursor: true })
+
+    const nextButtonText = this.add
+      .text(width / 2 + 200, buttonY, 'NEXT', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '16px',
+        color: '#ffffff'
+      })
+      .setOrigin(0.5)
+      .setShadow(2, 2, '#000000', 2)
+
+    nextButton.on('pointerover', () => {
+      nextButton.setFillStyle(0x22c55e)
+      this.tweens.add({
+        targets: [nextButton, nextButtonText],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+    })
+
+    nextButton.on('pointerout', () => {
+      nextButton.setFillStyle(0x16a34a)
+      this.tweens.add({
+        targets: [nextButton, nextButtonText],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+    })
+
+    nextButton.on('pointerdown', () => {
+      // Celebration particles
+      for (let i = 0; i < 10; i++) {
+        this.time.delayedCall(i * 50, () => {
+          this.createAttributeParticle(
+            width / 2 + (Math.random() - 0.5) * 200,
+            height / 2 + (Math.random() - 0.5) * 200,
+            0xfbbf24,
+            true
+          )
+        })
+      }
+      
+      this.cameras.main.fadeOut(300, 0, 0, 0)
+      this.time.delayedCall(300, () => {
+        this.proceedToNextScene()
+      })
     })
 
     // Initialize display
     this.updateHeroSelection()
     this.updateAttributeDisplay()
+    this.updateCreditsDisplay()
   }
 
   private selectHero(index: number) {
     this.currentHeroIndex = index
+    
+    // Animate hero slot selection
+    const selectedSlot = this.heroSlots[index]
+    this.tweens.add({
+      targets: selectedSlot,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 200,
+      yoyo: true,
+      ease: 'Back.easeOut'
+    })
+    
     this.updateHeroSelection()
     this.updateAttributeDisplay()
     this.updateHeroImage()
@@ -338,29 +522,143 @@ export default class HeroLevelUpScene extends Phaser.Scene {
     const attributeKeys: (keyof HeroAttributes)[] = ['strength', 'defense', 'intelligence', 'accuracy', 'agility', 'stamina']
 
     attributeKeys.forEach((key, index) => {
-      this.attributeValueTexts[index].setText(hero[key].toString())
+      const text = this.attributeValueTexts[index]
+      const oldValue = parseInt(text.text) || 0
+      const newValue = hero[key]
+      
+      if (oldValue !== newValue) {
+        // Animate value change
+        this.tweens.add({
+          targets: text,
+          scaleX: 1.3,
+          scaleY: 1.3,
+          duration: 150,
+          yoyo: true,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            text.setText(newValue.toString())
+          }
+        })
+      } else {
+        text.setText(newValue.toString())
+      }
     })
+  }
+
+  private updateCreditsDisplay() {
+    const oldText = this.creditsText.text
+    this.creditsText.setText(`Credits: ${this.credits}`)
+    
+    // Animate credit change
+    if (oldText !== this.creditsText.text) {
+      this.tweens.add({
+        targets: this.creditsText,
+        scaleX: 1.2,
+        scaleY: 1.2,
+        duration: 200,
+        yoyo: true,
+        ease: 'Back.easeOut'
+      })
+    }
+    
+    // Change color based on credits remaining
+    if (this.credits === 0) {
+      this.creditsText.setColor('#ef4444') // Red when out of credits
+    } else if (this.credits <= 5) {
+      this.creditsText.setColor('#f59e0b') // Orange when low
+    } else {
+      this.creditsText.setColor('#fbbf24') // Gold when plenty
+    }
+
+    // Update all plus buttons to reflect credit availability
+    // This is a workaround since we don't store button references
+    // In a production app, you'd want to store button references
   }
 
   private updateHeroImage() {
     const hero = HEROES[this.currentHeroIndex]
-    this.heroImage.setTexture(hero.id)
-    const imgScale = Math.min(180 / this.heroImage.width, 240 / this.heroImage.height)
-    this.heroImage.setScale(imgScale)
-    this.heroNameText.setText(hero.name.toUpperCase())
+    
+    // Fade out old image
+    this.tweens.add({
+      targets: this.heroImage,
+      alpha: 0,
+      scaleX: 0.8,
+      scaleY: 0.8,
+      duration: 200,
+      onComplete: () => {
+        this.heroImage.setTexture(hero.id)
+        const imgScale = Math.min(180 / this.heroImage.width, 240 / this.heroImage.height)
+        this.heroImage.setScale(imgScale)
+        
+        // Fade in new image with bounce
+        this.heroImage.setAlpha(0)
+        this.heroImage.setScale(imgScale * 0.8)
+        this.tweens.add({
+          targets: this.heroImage,
+          alpha: 1,
+          scaleX: imgScale,
+          scaleY: imgScale,
+          duration: 300,
+          ease: 'Back.easeOut'
+        })
+      }
+    })
+    
+    // Update name with animation
+    this.tweens.add({
+      targets: this.heroNameText,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => {
+        this.heroNameText.setText(hero.name.toUpperCase())
+        this.tweens.add({
+          targets: this.heroNameText,
+          alpha: 1,
+          scaleX: 1.2,
+          scaleY: 1.2,
+          duration: 200,
+          yoyo: true,
+          ease: 'Back.easeOut'
+        })
+      }
+    })
+  }
+
+  private createAttributeParticle(x: number, y: number, color: number, isUp: boolean) {
+    const particle = this.add.circle(x, y, 3, color)
+    particle.setAlpha(0.8)
+    
+    this.tweens.add({
+      targets: particle,
+      y: y + (isUp ? -30 : 30),
+      alpha: 0,
+      scaleX: 1.5,
+      scaleY: 1.5,
+      duration: 500,
+      ease: 'Power2',
+      onComplete: () => particle.destroy()
+    })
   }
 
   private proceedToNextScene() {
     if (this.playerName === this.player1Name) {
+      // Store player 1's heroes data
       this.registry.set('player1Heroes', this.heroes)
+      
+      // Transition to Player 2's hero selection screen
       this.scene.start('Player2HeroSelectScene', {
         player1Name: this.player1Name,
         player2Name: this.player2Name
       })
     } else {
+      // Player 2 is done, save their heroes data
       this.registry.set('player2Heroes', this.heroes)
-      console.log('Player 1 Heroes:', this.registry.get('player1Heroes'))
-      console.log('Player 2 Heroes:', this.heroes)
+      
+      // Both players are done - start the battle
+      this.scene.start('BattleScene', {
+        player1Name: this.player1Name,
+        player2Name: this.player2Name
+      })
     }
   }
 }
