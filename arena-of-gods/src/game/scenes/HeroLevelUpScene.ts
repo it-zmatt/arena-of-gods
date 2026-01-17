@@ -1,5 +1,14 @@
 import Phaser from 'phaser'
 
+const BACKGROUNDS = ['forest', 'river', 'volcanic_river', 'plains', 'fortress']
+const HEROES = [
+  { id: 'brutus', name: 'Brutus' },
+  { id: 'kael', name: 'Kael' },
+  { id: 'lyra', name: 'Lyra' },
+  { id: 'thea', name: 'Thea' },
+  { id: 'marcus', name: 'Marcus' }
+]
+
 interface HeroAttributes {
   strength: number
   defense: number
@@ -10,20 +19,17 @@ interface HeroAttributes {
 }
 
 export default class HeroLevelUpScene extends Phaser.Scene {
-  private playerName!: string
   private player1Name!: string
   private player2Name!: string
+  private playerName!: string
   private heroes: HeroAttributes[] = []
   private currentHeroIndex: number = 0
-  private heroNames: string[] = ['Kael', 'Hero 2', 'Hero 3', 'Hero 4', 'Hero 5']
-  
+
   // UI elements
-  private heroSlots: Phaser.GameObjects.Rectangle[] = []
-  private heroImagePlaceholder!: Phaser.GameObjects.Rectangle
-  private attributeTexts: Phaser.GameObjects.Text[] = []
-  private attributeValues: Phaser.GameObjects.Text[] = []
-  private attributesTitle!: Phaser.GameObjects.Text
-  private playerNameText!: Phaser.GameObjects.Text
+  private heroSlots: Phaser.GameObjects.Container[] = []
+  private heroImage!: Phaser.GameObjects.Image
+  private attributeValueTexts: Phaser.GameObjects.Text[] = []
+  private heroNameText!: Phaser.GameObjects.Text
 
   constructor() {
     super('HeroLevelUpScene')
@@ -33,8 +39,8 @@ export default class HeroLevelUpScene extends Phaser.Scene {
     this.player1Name = data.player1Name
     this.player2Name = data.player2Name || 'Player 2'
     this.playerName = data.currentPlayer || data.player1Name
-    
-    // Initialize all heroes with default attributes (all = 1)
+
+    // Initialize all heroes with default attributes
     this.heroes = Array(5).fill(null).map(() => ({
       strength: 1,
       defense: 1,
@@ -43,115 +49,173 @@ export default class HeroLevelUpScene extends Phaser.Scene {
       agility: 1,
       stamina: 1
     }))
+
+    this.heroSlots = []
+    this.attributeValueTexts = []
+    this.currentHeroIndex = 0
+  }
+
+  preload() {
+    // Load backgrounds
+    BACKGROUNDS.forEach((bg) => {
+      this.load.image(`bg_${bg}`, `src/assets/backgrounds/${bg}.png`)
+    })
+    // Load character images
+    HEROES.forEach((hero) => {
+      this.load.image(hero.id, `src/assets/characters/${hero.id}.png`)
+    })
   }
 
   create() {
-    // Background
-    this.cameras.main.setBackgroundColor('#0f172a')
+    const { width, height } = this.cameras.main
 
-    // Player name at the top
-    this.playerNameText = this.add
-      .text(this.cameras.main.width / 2, 50, `${this.playerName} — Level Up Your Heroes`, {
-        fontSize: '28px',
-        color: '#ffffff'
+    // Random background
+    const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
+    const bg = this.add.image(0, 0, `bg_${randomBg}`).setOrigin(0, 0)
+    bg.setDisplaySize(width, height)
+
+    // Title banner at top
+    const bannerHeight = 100
+    const bannerBg = this.add.graphics()
+    bannerBg.fillGradientStyle(0x0f172a, 0x0f172a, 0x0f172a, 0x0f172a, 1, 1, 0, 0)
+    bannerBg.fillRect(0, 0, width, bannerHeight)
+
+    // Decorative gold line under banner
+    this.add.rectangle(width / 2, bannerHeight, width, 4, 0xfbbf24)
+
+    // Player name with glow effect
+    this.add
+      .text(width / 2, 35, this.playerName, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '20px',
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+      .setShadow(0, 0, '#fbbf24', 8, true, true)
+
+    // Subtitle
+    this.add
+      .text(width / 2, 70, '— Level Up Your Heroes —', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#e2e8f0'
       })
       .setOrigin(0.5)
 
-    // Main panel (centered)
-    const centerX = this.cameras.main.width / 2
-    const centerY = this.cameras.main.height / 2
-    const panelWidth = 700
-    const panelHeight = 500
+    // Hero selection slots
+    const slotSize = 70
+    const slotSpacing = 90
+    const slotsStartX = width / 2 - ((HEROES.length - 1) * slotSpacing) / 2
+    const slotsY = 160
 
-    const mainPanel = this.add
-      .rectangle(centerX, centerY, panelWidth, panelHeight, 0xffffff)
-      .setStrokeStyle(4, 0x000000)
+    HEROES.forEach((hero, i) => {
+      const x = slotsStartX + i * slotSpacing
+      const container = this.add.container(x, slotsY)
 
-    // Hero selection slots at the top
-    const slotStartX = centerX - 200
-    const slotY = centerY - 200
-    const slotSpacing = 80
-    const slotSize = 60
+      // Slot background
+      const slotBg = this.add.rectangle(0, 0, slotSize, slotSize, 0x1e293b)
+        .setStrokeStyle(3, 0x475569)
 
-    for (let i = 0; i < 5; i++) {
-      const slot = this.add
-        .rectangle(slotStartX + i * slotSpacing, slotY, slotSize, slotSize, 0xffffff)
-        .setStrokeStyle(2, 0x000000)
-        .setInteractive({ useHandCursor: true })
+      // Hero thumbnail
+      const thumbnail = this.add.image(0, 0, hero.id)
+      const scale = Math.min((slotSize - 10) / thumbnail.width, (slotSize - 10) / thumbnail.height)
+      thumbnail.setScale(scale)
 
-      this.heroSlots.push(slot)
+      container.add([slotBg, thumbnail])
+      container.setSize(slotSize, slotSize)
+      container.setInteractive({ useHandCursor: true })
 
-      slot.on('pointerdown', () => {
+      container.on('pointerover', () => {
+        if (i !== this.currentHeroIndex) {
+          slotBg.setStrokeStyle(3, 0xfbbf24)
+        }
+      })
+
+      container.on('pointerout', () => {
+        if (i !== this.currentHeroIndex) {
+          slotBg.setStrokeStyle(3, 0x475569)
+        }
+      })
+
+      container.on('pointerdown', () => {
         this.selectHero(i)
       })
 
-      slot.on('pointerover', () => {
-        if (i !== this.currentHeroIndex) {
-          slot.setFillStyle(0xf0f0f0)
-        }
-      })
+      this.heroSlots.push(container)
+    })
 
-      slot.on('pointerout', () => {
-        if (i !== this.currentHeroIndex) {
-          slot.setFillStyle(0xffffff)
-        }
-      })
-    }
+    // Main content area
+    const contentY = height / 2 + 40
 
-    // Hero image placeholder (left side)
-    const imageX = centerX - 200
-    const imageY = centerY + 50
-    this.heroImagePlaceholder = this.add
-      .rectangle(imageX, imageY, 200, 250, 0xe0e0e0)
-      .setStrokeStyle(2, 0x000000)
+    // Hero image display (left side)
+    const heroImageX = width / 3
+    this.add.rectangle(heroImageX, contentY, 200, 260, 0x1e293b)
+      .setStrokeStyle(3, 0x475569)
 
-    // Attributes section (right side)
-    const attributesX = centerX + 150
-    const attributesY = centerY - 50
-    const attributeSpacing = 50
+    this.heroImage = this.add.image(heroImageX, contentY, HEROES[0].id)
+    const imgScale = Math.min(180 / this.heroImage.width, 240 / this.heroImage.height)
+    this.heroImage.setScale(imgScale)
 
-    this.attributesTitle = this.add
-      .text(attributesX, attributesY - 100, `${this.heroNames[this.currentHeroIndex]}'s Attributes`, {
-        fontSize: '24px',
-        color: '#000000',
-        fontStyle: 'bold'
+    // Hero name below image
+    this.heroNameText = this.add
+      .text(heroImageX, contentY + 155, HEROES[0].name.toUpperCase(), {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '14px',
+        color: '#fbbf24'
       })
       .setOrigin(0.5)
+      .setShadow(2, 2, '#000000', 2)
+
+    // Attributes panel (right side)
+    const attrX = (width * 2) / 3
+    const attrStartY = contentY - 120
+    const attrSpacing = 45
 
     const attributeNames = ['Strength', 'Defense', 'Intelligence', 'Accuracy', 'Agility', 'Stamina']
     const attributeKeys: (keyof HeroAttributes)[] = ['strength', 'defense', 'intelligence', 'accuracy', 'agility', 'stamina']
 
+    // Attributes title
+    this.add
+      .text(attrX, attrStartY - 40, 'ATTRIBUTES', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '12px',
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+      .setShadow(0, 0, '#fbbf24', 4, true, true)
+
     attributeNames.forEach((name, index) => {
-      const y = attributesY + index * attributeSpacing
+      const y = attrStartY + index * attrSpacing
       const key = attributeKeys[index]
 
-      // Attribute container
-      const attrContainer = this.add
-        .rectangle(attributesX, y, 300, 40, 0xf5f5f5)
-        .setStrokeStyle(1, 0x000000)
+      // Attribute row background
+      this.add.rectangle(attrX, y, 280, 36, 0x1e293b)
+        .setStrokeStyle(2, 0x475569)
 
       // Attribute name
       this.add
-        .text(attributesX - 100, y, `${name} -`, {
-          fontSize: '16px',
-          color: '#000000'
+        .text(attrX - 100, y, name, {
+          fontFamily: '"Press Start 2P"',
+          fontSize: '9px',
+          color: '#e2e8f0'
         })
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0, 0.5)
 
       // Minus button
-      const minusBtn = this.add
-        .rectangle(attributesX - 20, y, 30, 30, 0xff6b6b)
-        .setStrokeStyle(1, 0x000000)
+      const minusBtn = this.add.rectangle(attrX + 60, y, 32, 28, 0x991b1b)
+        .setStrokeStyle(2, 0xef4444)
         .setInteractive({ useHandCursor: true })
 
       this.add
-        .text(attributesX - 20, y, '-', {
-          fontSize: '20px',
-          color: '#ffffff',
-          fontStyle: 'bold'
+        .text(attrX + 60, y, '-', {
+          fontFamily: '"Press Start 2P"',
+          fontSize: '14px',
+          color: '#ffffff'
         })
         .setOrigin(0.5)
 
+      minusBtn.on('pointerover', () => minusBtn.setFillStyle(0xb91c1c))
+      minusBtn.on('pointerout', () => minusBtn.setFillStyle(0x991b1b))
       minusBtn.on('pointerdown', () => {
         if (this.heroes[this.currentHeroIndex][key] > 1) {
           this.heroes[this.currentHeroIndex][key]--
@@ -159,82 +223,92 @@ export default class HeroLevelUpScene extends Phaser.Scene {
         }
       })
 
-      minusBtn.on('pointerover', () => {
-        minusBtn.setFillStyle(0xff5252)
-      })
-
-      minusBtn.on('pointerout', () => {
-        minusBtn.setFillStyle(0xff6b6b)
-      })
-
-      // Attribute value
+      // Value text
       const valueText = this.add
-        .text(attributesX, y, '1', {
-          fontSize: '18px',
-          color: '#000000',
-          fontStyle: 'bold'
+        .text(attrX + 100, y, '1', {
+          fontFamily: '"Press Start 2P"',
+          fontSize: '12px',
+          color: '#fbbf24'
         })
         .setOrigin(0.5)
 
-      this.attributeValues.push(valueText)
+      this.attributeValueTexts.push(valueText)
 
       // Plus button
-      const plusBtn = this.add
-        .rectangle(attributesX + 20, y, 30, 30, 0x4caf50)
-        .setStrokeStyle(1, 0x000000)
+      const plusBtn = this.add.rectangle(attrX + 140, y, 32, 28, 0x166534)
+        .setStrokeStyle(2, 0x22c55e)
         .setInteractive({ useHandCursor: true })
 
       this.add
-        .text(attributesX + 20, y, '+', {
-          fontSize: '20px',
-          color: '#ffffff',
-          fontStyle: 'bold'
+        .text(attrX + 140, y, '+', {
+          fontFamily: '"Press Start 2P"',
+          fontSize: '14px',
+          color: '#ffffff'
         })
         .setOrigin(0.5)
 
+      plusBtn.on('pointerover', () => plusBtn.setFillStyle(0x15803d))
+      plusBtn.on('pointerout', () => plusBtn.setFillStyle(0x166534))
       plusBtn.on('pointerdown', () => {
         this.heroes[this.currentHeroIndex][key]++
         this.updateAttributeDisplay()
       })
+    })
 
-      plusBtn.on('pointerover', () => {
-        plusBtn.setFillStyle(0x45a049)
+    // Bottom panel with Next button
+    const bottomPanelBg = this.add.graphics()
+    bottomPanelBg.fillGradientStyle(0x0f172a, 0x0f172a, 0x0f172a, 0x0f172a, 0, 0, 1, 1)
+    bottomPanelBg.fillRect(0, height - 80, width, 80)
+
+    // Decorative gold line above bottom panel
+    this.add.rectangle(width / 2, height - 80, width, 2, 0xfbbf24, 0.5)
+
+    // Next button
+    const buttonWidth = 200
+    const buttonHeight = 50
+    const buttonY = height - 45
+
+    const button = this.add
+      .rectangle(width / 2, buttonY, buttonWidth, buttonHeight, 0x16a34a)
+      .setStrokeStyle(3, 0x22c55e)
+      .setInteractive({ useHandCursor: true })
+
+    const buttonText = this.add
+      .text(width / 2, buttonY, 'NEXT', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '16px',
+        color: '#ffffff'
       })
+      .setOrigin(0.5)
+      .setShadow(2, 2, '#000000', 2)
 
-      plusBtn.on('pointerout', () => {
-        plusBtn.setFillStyle(0x4caf50)
+    button.on('pointerover', () => {
+      button.setFillStyle(0x22c55e)
+      this.tweens.add({
+        targets: [button, buttonText],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Back.easeOut'
       })
     })
 
-    // Next button (bottom right)
-    const nextButtonX = centerX + 250
-    const nextButtonY = centerY + 200
-    const nextButton = this.add
-      .rectangle(nextButtonX, nextButtonY, 120, 40, 0x2196f3)
-      .setStrokeStyle(2, 0x000000)
-      .setInteractive({ useHandCursor: true })
-
-    this.add
-      .text(nextButtonX, nextButtonY, 'Next', {
-        fontSize: '18px',
-        color: '#ffffff',
-        fontStyle: 'bold'
+    button.on('pointerout', () => {
+      button.setFillStyle(0x16a34a)
+      this.tweens.add({
+        targets: [button, buttonText],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100,
+        ease: 'Back.easeOut'
       })
-      .setOrigin(0.5)
+    })
 
-    nextButton.on('pointerdown', () => {
+    button.on('pointerdown', () => {
       this.proceedToNextScene()
     })
 
-    nextButton.on('pointerover', () => {
-      nextButton.setFillStyle(0x1976d2)
-    })
-
-    nextButton.on('pointerout', () => {
-      nextButton.setFillStyle(0x2196f3)
-    })
-
-    // Update initial display
+    // Initialize display
     this.updateHeroSelection()
     this.updateAttributeDisplay()
   }
@@ -243,15 +317,18 @@ export default class HeroLevelUpScene extends Phaser.Scene {
     this.currentHeroIndex = index
     this.updateHeroSelection()
     this.updateAttributeDisplay()
-    this.updateHeroName()
+    this.updateHeroImage()
   }
 
   private updateHeroSelection() {
-    this.heroSlots.forEach((slot, index) => {
+    this.heroSlots.forEach((container, index) => {
+      const slotBg = container.getAt(0) as Phaser.GameObjects.Rectangle
       if (index === this.currentHeroIndex) {
-        slot.setFillStyle(0x90ee90) // Light green for selected
+        slotBg.setStrokeStyle(4, 0x22c55e)
+        slotBg.setFillStyle(0x334155)
       } else {
-        slot.setFillStyle(0xffffff) // White for unselected
+        slotBg.setStrokeStyle(3, 0x475569)
+        slotBg.setFillStyle(0x1e293b)
       }
     })
   }
@@ -261,35 +338,29 @@ export default class HeroLevelUpScene extends Phaser.Scene {
     const attributeKeys: (keyof HeroAttributes)[] = ['strength', 'defense', 'intelligence', 'accuracy', 'agility', 'stamina']
 
     attributeKeys.forEach((key, index) => {
-      this.attributeValues[index].setText(hero[key].toString())
+      this.attributeValueTexts[index].setText(hero[key].toString())
     })
   }
 
-  private updateHeroName() {
-    this.attributesTitle.setText(`${this.heroNames[this.currentHeroIndex]}'s Attributes`)
+  private updateHeroImage() {
+    const hero = HEROES[this.currentHeroIndex]
+    this.heroImage.setTexture(hero.id)
+    const imgScale = Math.min(180 / this.heroImage.width, 240 / this.heroImage.height)
+    this.heroImage.setScale(imgScale)
+    this.heroNameText.setText(hero.name.toUpperCase())
   }
 
   private proceedToNextScene() {
-    // Store player 1's heroes data if this is player 1
     if (this.playerName === this.player1Name) {
-      // Save player 1's heroes data to registry for later use
       this.registry.set('player1Heroes', this.heroes)
-      
-      // Transition to Player 2's hero selection screen
       this.scene.start('Player2HeroSelectScene', {
         player1Name: this.player1Name,
         player2Name: this.player2Name
       })
     } else {
-      // Player 2 is done, save their heroes data
       this.registry.set('player2Heroes', this.heroes)
-      
-      // Both players are done - proceed to next scene (game start, etc.)
       console.log('Player 1 Heroes:', this.registry.get('player1Heroes'))
       console.log('Player 2 Heroes:', this.heroes)
-      
-      // TODO: Transition to game scene or next phase
-      // this.scene.start('GameScene', { player1Heroes: this.registry.get('player1Heroes'), player2Heroes: this.heroes })
     }
   }
 }
