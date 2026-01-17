@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import HeroSelectScene from './scenes/HeroSelectScene'
 import HeroLevelUpScene from './scenes/HeroLevelUpScene'
 import Player2HeroSelectScene from './scenes/Player2HeroSelectScene'
+import BattleScene from './scenes/BattleScene'
+import WinnerScene from './scenes/WinnerScene'
 import { StartScene } from './scenes/MenuScene'
 
 
@@ -9,7 +11,7 @@ const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: window.innerWidth,
   height: window.innerHeight,
-  scene: [StartScene, HeroSelectScene, HeroLevelUpScene, Player2HeroSelectScene],
+  scene: [StartScene, HeroSelectScene, HeroLevelUpScene, Player2HeroSelectScene, BattleScene, WinnerScene],
   parent: "game-root",
   backgroundColor: "#000000",
   scale: {

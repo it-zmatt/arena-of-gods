@@ -13,8 +13,6 @@ export default class HeroSelectScene extends Phaser.Scene {
   private playerName!: string
   private player1Name!: string
   private player2Name!: string
-  private selectedHeroId: string | null = null
-  private heroCards: Phaser.GameObjects.Container[] = []
 
   constructor() {
     super('HeroSelectScene')
@@ -24,8 +22,6 @@ export default class HeroSelectScene extends Phaser.Scene {
     this.playerName = data.player1Name
     this.player1Name = data.player1Name
     this.player2Name = data.player2Name || 'Player 2'
-    this.selectedHeroId = null
-    this.heroCards = []
   }
 
   preload() {
@@ -68,7 +64,7 @@ export default class HeroSelectScene extends Phaser.Scene {
 
     // Subtitle
     this.add
-      .text(width / 2, 70, '— Select Your Champion —', {
+      .text(width / 2, 70, '— Your Heroes —', {
         fontFamily: '"Press Start 2P"',
         fontSize: '10px',
         color: '#e2e8f0'
@@ -134,129 +130,54 @@ export default class HeroSelectScene extends Phaser.Scene {
         .setShadow(2, 2, '#000000', 2)
 
       container.add([shadow, cardBg, cardInner, outerBorder, border, charImage, namePlateBg, nameText])
-      container.setSize(cardWidth, cardHeight)
-      container.setInteractive({ useHandCursor: true })
-
-      // Store references for hover effects
-      const cardElements = { border, outerBorder, shadow, namePlateBg, nameText }
-
-      // Hover effects
-      container.on('pointerover', () => {
-        if (this.selectedHeroId === null) {
-          this.tweens.add({
-            targets: container,
-            scaleX: 1.08,
-            scaleY: 1.08,
-            y: cardY - 10,
-            duration: 150,
-            ease: 'Back.easeOut'
-          })
-          cardElements.border.setStrokeStyle(3, 0xfbbf24)
-          cardElements.outerBorder.setStrokeStyle(2, 0xfbbf24, 0.8)
-          cardElements.namePlateBg.setFillStyle(0x1e293b)
-          cardElements.shadow.setAlpha(0.8)
-        }
-      })
-
-      container.on('pointerout', () => {
-        if (this.selectedHeroId !== hero.id) {
-          this.tweens.add({
-            targets: container,
-            scaleX: 1,
-            scaleY: 1,
-            y: cardY,
-            duration: 150,
-            ease: 'Back.easeOut'
-          })
-          cardElements.border.setStrokeStyle(3, 0x475569)
-          cardElements.outerBorder.setStrokeStyle(2, 0xfbbf24, 0.3)
-          cardElements.namePlateBg.setFillStyle(0x0f172a)
-          cardElements.shadow.setAlpha(0.5)
-        }
-      })
-
-      container.on('pointerdown', () => {
-        this.selectHero(hero.id, container, cardElements)
-      })
-
-      this.heroCards.push(container)
     })
 
-    // Bottom hint panel
-    const hintBg = this.add.graphics()
-    hintBg.fillGradientStyle(0x0f172a, 0x0f172a, 0x0f172a, 0x0f172a, 0, 0, 1, 1)
-    hintBg.fillRect(0, height - 60, width, 60)
+    // Continue button at the bottom
+    const buttonY = height - 80
+    const continueButton = this.add
+      .rectangle(width / 2, buttonY, 200, 50, 0x16a34a)
+      .setStrokeStyle(3, 0xffffff)
+      .setInteractive({ useHandCursor: true })
 
-    // Decorative gold line above hint
-    this.add.rectangle(width / 2, height - 60, width, 2, 0xfbbf24, 0.5)
-
-    // Hint text with blinking effect
-    const hintText = this.add
-      .text(width / 2, height - 30, 'Click a hero card to select your champion', {
+    const continueText = this.add
+      .text(width / 2, buttonY, 'Continue', {
         fontFamily: '"Press Start 2P"',
-        fontSize: '9px',
-        color: '#94a3b8'
+        fontSize: '14px',
+        color: '#ffffff'
       })
       .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
 
-    // Blinking animation for hint
-    this.tweens.add({
-      targets: hintText,
-      alpha: 0.4,
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
+    continueButton.on('pointerdown', () => {
+      this.proceedToNextScene()
+    })
+
+    continueText.on('pointerdown', () => {
+      this.proceedToNextScene()
+    })
+
+    continueButton.on('pointerover', () => {
+      continueButton.setFillStyle(0x22c55e)
+    })
+
+    continueButton.on('pointerout', () => {
+      continueButton.setFillStyle(0x16a34a)
+    })
+
+    continueText.on('pointerover', () => {
+      continueButton.setFillStyle(0x22c55e)
+    })
+
+    continueText.on('pointerout', () => {
+      continueButton.setFillStyle(0x16a34a)
     })
   }
 
-  private selectHero(
-    heroId: string,
-    container: Phaser.GameObjects.Container,
-    cardElements: {
-      border: Phaser.GameObjects.Rectangle
-      outerBorder: Phaser.GameObjects.Rectangle
-      shadow: Phaser.GameObjects.Rectangle
-      namePlateBg: Phaser.GameObjects.Rectangle
-      nameText: Phaser.GameObjects.Text
-    }
-  ) {
-    if (this.selectedHeroId !== null) return
-
-    this.selectedHeroId = heroId
-
-    // Visual feedback - highlight selected card with green
-    cardElements.border.setStrokeStyle(4, 0x22c55e)
-    cardElements.outerBorder.setStrokeStyle(3, 0x22c55e, 1)
-    cardElements.namePlateBg.setFillStyle(0x166534)
-    cardElements.nameText.setColor('#ffffff')
-
-    // Scale up animation
-    this.tweens.add({
-      targets: container,
-      scaleX: 1.12,
-      scaleY: 1.12,
-      duration: 200,
-      ease: 'Back.easeOut'
-    })
-
-    // Dim other cards
-    this.heroCards.forEach((card) => {
-      if (card !== container) {
-        this.tweens.add({
-          targets: card,
-          alpha: 0.4,
-          duration: 300
-        })
-      }
-    })
-
-    // Small delay before next scene
-    this.time.delayedCall(800, () => {
-      this.scene.start('HeroSelectSceneP2', {
-        player1Name: this.playerName,
-        player1HeroId: heroId
-      })
+  private proceedToNextScene() {
+    this.scene.start('HeroLevelUpScene', {
+      player1Name: this.player1Name,
+      player2Name: this.player2Name,
+      currentPlayer: this.player1Name
     })
   }
 }
