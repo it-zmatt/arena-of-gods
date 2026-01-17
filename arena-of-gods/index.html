@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <title>arena-of-gods</title>
   </head>
   <body class="bg-slate-900 text-white">
@@ -11,32 +14,40 @@
 
 		<div
 		id="start-ui"
-		class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/70 text-white"
+		class="absolute inset-0 flex flex-col items-center justify-center gap-6 text-white"
 		>
-		<h1 class="text-4xl font-bold tracking-wide">
-			Arena of Gods
-		</h1>
+		<!-- Title container with decorative border -->
+		<div class="menu-panel title-panel">
+			<h1 class="pixel-title">
+				Arena of Gods
+			</h1>
+			<p class="pixel-subtitle">Battle of Legends</p>
+		</div>
 
-		<input
-			id="player1"
-			type="text"
-			placeholder="Player 1 Name"
-			class="px-4 py-2 rounded text-black w-64"
-		/>
+		<!-- Player inputs panel -->
+		<div class="menu-panel input-panel">
+			<label class="pixel-label">Player 1</label>
+			<input
+				id="player1"
+				type="text"
+				placeholder="Enter name..."
+				class="pixel-input"
+			/>
 
-		<input
-			id="player2"
-			type="text"
-			placeholder="Player 2 Name"
-			class="px-4 py-2 rounded text-black w-64"
-		/>
+			<label class="pixel-label">Player 2</label>
+			<input
+				id="player2"
+				type="text"
+				placeholder="Enter name..."
+				class="pixel-input"
+			/>
+		</div>
 
-		<button
-			id="start-btn"
-			class="mt-4 px-6 py-2 bg-yellow-500 text-black rounded font-semibold hover:bg-yellow-400"
-		>
+		<button id="start-btn" class="pixel-btn">
 			Start Game
 		</button>
+
+		<p class="pixel-hint">Press START to begin your quest</p>
 		</div>
 	</div>
 
