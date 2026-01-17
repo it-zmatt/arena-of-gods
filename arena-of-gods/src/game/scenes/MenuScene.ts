@@ -10,14 +10,14 @@ export class StartScene extends Phaser.Scene {
   preload() {
     // Load all background images
     BACKGROUNDS.forEach((bg) => {
-      this.load.image(bg, `src/assets/backgrounds/${bg}.png`)
+      this.load.image(`bg_${bg}`, `src/assets/backgrounds/${bg}.png`)
     })
   }
 
   create() {
     // Select and display a random background
     const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
-    const bg = this.add.image(0, 0, randomBg).setOrigin(0, 0)
+    const bg = this.add.image(0, 0, `bg_${randomBg}`).setOrigin(0, 0)
 
     // Scale background to fit the game canvas
     bg.setDisplaySize(this.cameras.main.width, this.cameras.main.height)

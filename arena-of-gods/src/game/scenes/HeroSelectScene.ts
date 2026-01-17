@@ -64,7 +64,7 @@ export default class HeroSelectScene extends Phaser.Scene {
 
     // Subtitle
     this.add
-      .text(width / 2, 70, '— Select Your Champion —', {
+      .text(width / 2, 70, '— Your Heroes —', {
         fontFamily: '"Press Start 2P"',
         fontSize: '10px',
         color: '#e2e8f0'
