@@ -89,7 +89,7 @@ DEFENDER:
 TASK:
 Analyze both heroes' stats and generate a battle outcome in JSON format:
 {
-  "narrative": "Single sentence (100-150 chars) describing the action",
+  "narrative": "Single sentence describing the action",
   "damage": number (calculated based on attacker's strength/intelligence/accuracy vs defender's defense/agility),
   "attackSuccess": boolean,
   "criticalHit": boolean (rare, only if attacker has 7+ accuracy AND 7+ strength/intelligence),
@@ -103,10 +103,10 @@ RULES:
    - Hit chance based on attacker.accuracy vs defender.agility
    - Critical multiplier: 1.5x if criticalHit is true
    - Range: 3-30 damage
-2. Narrative must reference character names and fighting styles
-3. Consider current health (low health = desperate/defensive tactics)
-4. Use character overview to inform fighting style
-5. Keep narrative concise and exciting
+2. Narrative MUST be 60-80 characters maximum - very short and punchy
+3. Use short words and character first names only (e.g., "Brutus" not "Brutus the Executioner")
+4. Reference fighting style briefly (e.g., "strikes", "blasts", "evades")
+5. Keep it exciting but extremely concise
 
 OUTPUT ONLY THE JSON, NO ADDITIONAL TEXT.`
   }
@@ -177,7 +177,7 @@ OUTPUT ONLY THE JSON, NO ADDITIONAL TEXT.`
 
       // Sanitization
       outcome.damage = Math.max(3, Math.min(30, Math.floor(outcome.damage)))
-      outcome.narrative = outcome.narrative.substring(0, 150)
+      outcome.narrative = outcome.narrative.substring(0, 80).trim()
 
       return outcome
     } catch (error) {
@@ -241,33 +241,33 @@ OUTPUT ONLY THE JSON, NO ADDITIONAL TEXT.`
 
     if (!success) {
       const missTemplates = [
-        `${defender.name} evades ${attacker.name}'s attack with swift movement`,
-        `${attacker.name}'s strike misses ${defender.name} completely`,
-        `${defender.name} deflects ${attacker.name}'s ${attackType} attack`
+        `${defender.name} dodges ${attacker.name}'s attack`,
+        `${attacker.name} misses ${defender.name}`,
+        `${defender.name} blocks ${attacker.name}'s strike`
       ]
       return missTemplates[Math.floor(Math.random() * missTemplates.length)]
     }
 
     if (critical) {
       const critTemplates = [
-        `${attacker.name} lands a devastating critical hit on ${defender.name}!`,
-        `${attacker.name} exploits a fatal opening in ${defender.name}'s defense!`,
-        `${defender.name} takes a brutal critical strike from ${attacker.name}!`
+        `${attacker.name} lands a critical hit on ${defender.name}!`,
+        `${attacker.name} strikes ${defender.name} critically!`,
+        `${defender.name} takes a brutal hit from ${attacker.name}!`
       ]
       return critTemplates[Math.floor(Math.random() * critTemplates.length)]
     }
 
     // Regular hit templates based on attack type
     const magicTemplates = [
-      `${attacker.name} channels arcane energy at ${defender.name}`,
-      `${attacker.name} casts a spell striking ${defender.name}`,
+      `${attacker.name} blasts ${defender.name} with magic`,
+      `${attacker.name} casts a spell on ${defender.name}`,
       `${defender.name} takes magical damage from ${attacker.name}`
     ]
 
     const meleeTemplates = [
-      `${attacker.name} strikes ${defender.name} with force`,
-      `${attacker.name} lands a solid blow on ${defender.name}`,
-      `${defender.name} takes damage from ${attacker.name}'s attack`
+      `${attacker.name} strikes ${defender.name}`,
+      `${attacker.name} hits ${defender.name} hard`,
+      `${defender.name} takes damage from ${attacker.name}`
     ]
 
     const templates = attackType === 'magic' ? magicTemplates : meleeTemplates
