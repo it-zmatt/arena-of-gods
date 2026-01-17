@@ -1,5 +1,14 @@
 import Phaser from 'phaser'
 
+const BACKGROUNDS = ['forest', 'river', 'volcanic_river', 'plains', 'fortress']
+const HEROES = [
+  { id: 'brutus', name: 'Brutus' },
+  { id: 'kael', name: 'Kael' },
+  { id: 'lyra', name: 'Lyra' },
+  { id: 'marcus', name: 'Marcus' },
+  { id: 'thea', name: 'Thea' }
+]
+
 interface HeroAttributes {
   strength: number
   defense: number
@@ -10,12 +19,15 @@ interface HeroAttributes {
 }
 
 interface Hero {
+  id: string
   name: string
   attributes: HeroAttributes
   health: number
   maxHealth: number
   healthBar?: Phaser.GameObjects.Rectangle
   healthBarBg?: Phaser.GameObjects.Rectangle
+  heroImage?: Phaser.GameObjects.Image
+  healthText?: Phaser.GameObjects.Text
 }
 
 export default class BattleScene extends Phaser.Scene {
@@ -42,30 +54,43 @@ export default class BattleScene extends Phaser.Scene {
     this.player2Name = data.player2Name
   }
 
+  preload() {
+    // Load backgrounds
+    BACKGROUNDS.forEach((bg) => {
+      this.load.image(`bg_${bg}`, `src/assets/backgrounds/${bg}.png`)
+    })
+    // Load character images
+    HEROES.forEach((hero) => {
+      this.load.image(hero.id, `src/assets/characters/${hero.id}.png`)
+    })
+  }
+
   create() {
     const { width, height } = this.cameras.main
 
-    // Background
-    this.cameras.main.setBackgroundColor('#ffffff')
+    // Random background
+    const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
+    const bg = this.add.image(0, 0, `bg_${randomBg}`).setOrigin(0, 0)
+    bg.setDisplaySize(width, height)
 
-    // Main panel with rounded corners effect (using rectangle)
-    const panelWidth = width * 0.95
-    const panelHeight = height * 0.9
-    const panelX = width / 2
-    const panelY = height / 2
+    // Dark overlay
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5)
 
-    this.add
-      .rectangle(panelX, panelY, panelWidth, panelHeight, 0xf5f5f5)
-      .setStrokeStyle(3, 0x000000)
+    // Title banner at top
+    const bannerHeight = 100
+    const bannerBg = this.add.graphics()
+    bannerBg.fillGradientStyle(0x0f172a, 0x0f172a, 0x0f172a, 0x0f172a, 1, 1, 0, 0)
+    bannerBg.fillRect(0, 0, width, bannerHeight)
+
+    // Decorative gold line under banner
+    this.add.rectangle(width / 2, bannerHeight, width, 4, 0xfbbf24)
 
     // Load hero data from registry
     const player1HeroesData = this.registry.get('player1Heroes') as HeroAttributes[] || []
     const player2HeroesData = this.registry.get('player2Heroes') as HeroAttributes[] || []
 
     // Initialize heroes with health (stamina * 10 as max health)
-    const heroNames = ['Kael', 'Kael', 'Kael', 'Kael', 'Kael']
-    
-    this.player1Heroes = heroNames.map((name, index) => {
+    this.player1Heroes = HEROES.map((hero, index) => {
       const attrs = player1HeroesData[index] || {
         strength: 1,
         defense: 1,
@@ -76,14 +101,15 @@ export default class BattleScene extends Phaser.Scene {
       }
       const maxHealth = attrs.stamina * 10
       return {
-        name,
+        id: hero.id,
+        name: hero.name,
         attributes: attrs,
         health: maxHealth,
         maxHealth
       }
     })
 
-    this.player2Heroes = heroNames.map((name, index) => {
+    this.player2Heroes = HEROES.map((hero, index) => {
       const attrs = player2HeroesData[index] || {
         strength: 1,
         defense: 1,
@@ -94,145 +120,206 @@ export default class BattleScene extends Phaser.Scene {
       }
       const maxHealth = attrs.stamina * 10
       return {
-        name,
+        id: hero.id,
+        name: hero.name,
         attributes: attrs,
         health: maxHealth,
         maxHealth
       }
     })
 
-    // Turn indicator (top left)
-    this.turnIndicator = this.add
-      .text(panelX - panelWidth / 2 + 30, panelY - panelHeight / 2 + 20, this.currentTurn.toString(), {
-        fontSize: '24px',
-        color: '#000000',
-        fontStyle: 'bold'
-      })
-      .setOrigin(0, 0)
-
-    // Arrow pointing to panel (left side)
-    const arrowX = panelX - panelWidth / 2 - 40
-    const arrowY = panelY
+    // Battle title
     this.add
-      .text(arrowX, arrowY, '→', {
-        fontSize: '32px',
-        color: '#000000'
-      })
-      .setOrigin(0.5)
-
-    // Calculate column widths
-    const leftColumnWidth = panelWidth * 0.25
-    const rightColumnWidth = panelWidth * 0.25
-
-    this.leftColumnX = panelX - panelWidth / 2 + leftColumnWidth / 2
-    const centerColumnX = panelX
-    this.rightColumnX = panelX + panelWidth / 2 - rightColumnWidth / 2
-
-    // Player 1 Section (Left)
-    this.add
-      .text(this.leftColumnX, panelY - panelHeight / 2 + 30, 'Player 1', {
+      .text(width / 2, 35, '⚔ BATTLE ARENA ⚔', {
+        fontFamily: '"Press Start 2P"',
         fontSize: '20px',
-        color: '#000000',
-        fontStyle: 'bold'
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+      .setShadow(0, 0, '#fbbf24', 8, true, true)
+
+    // Turn indicator
+    this.turnIndicator = this.add
+      .text(width / 2, 70, `Turn: ${this.currentTurn}`, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#e2e8f0'
       })
       .setOrigin(0.5)
 
-    this.heroStartY = panelY - panelHeight / 2 + 80
-    const heroSpacing = 60
+    // Calculate positions
+    this.leftColumnX = width * 0.2
+    const centerColumnX = width / 2
+    this.rightColumnX = width * 0.8
+
+    // Player names with banners
+    const playerBannerY = 140
+
+    // Player 1 banner
+    const p1Banner = this.add.graphics()
+    p1Banner.fillStyle(0x1e293b, 0.9)
+    p1Banner.fillRect(this.leftColumnX - 120, playerBannerY - 20, 240, 40)
+    p1Banner.lineStyle(2, 0xfbbf24, 0.5)
+    p1Banner.strokeRect(this.leftColumnX - 120, playerBannerY - 20, 240, 40)
+
+    this.add
+      .text(this.leftColumnX, playerBannerY, this.player1Name, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '14px',
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+
+    // Player 2 banner
+    const p2Banner = this.add.graphics()
+    p2Banner.fillStyle(0x1e293b, 0.9)
+    p2Banner.fillRect(this.rightColumnX - 120, playerBannerY - 20, 240, 40)
+    p2Banner.lineStyle(2, 0xfbbf24, 0.5)
+    p2Banner.strokeRect(this.rightColumnX - 120, playerBannerY - 20, 240, 40)
+
+    this.add
+      .text(this.rightColumnX, playerBannerY, this.player2Name, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '14px',
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+
+    this.heroStartY = 220
+    const heroSpacing = 80
 
     // Player 1 Heroes
     this.player1Heroes.forEach((hero, index) => {
       const y = this.heroStartY + index * heroSpacing
-      
-      // Portrait placeholder (square on left)
-      this.add
-        .rectangle(this.leftColumnX - 80, y, 30, 30, 0xcccccc)
-        .setStrokeStyle(1, 0x000000)
+
+      // Hero card background
+      const cardBg = this.add.graphics()
+      cardBg.fillStyle(0x1e293b, 0.8)
+      cardBg.fillRect(this.leftColumnX - 120, y - 30, 240, 60)
+      cardBg.lineStyle(2, 0x475569)
+      cardBg.strokeRect(this.leftColumnX - 120, y - 30, 240, 60)
+
+      // Hero image on the left
+      hero.heroImage = this.add.image(this.leftColumnX - 95, y, hero.id)
+      const imageScale = Math.min(45 / hero.heroImage.width, 50 / hero.heroImage.height)
+      hero.heroImage.setScale(imageScale)
 
       // Hero name
       this.add
-        .text(this.leftColumnX - 50, y, hero.name, {
-          fontSize: '14px',
-          color: '#000000'
+        .text(this.leftColumnX - 45, y - 15, hero.name.toUpperCase(), {
+          fontFamily: '"Press Start 2P"',
+          fontSize: '10px',
+          color: '#fbbf24'
         })
         .setOrigin(0, 0.5)
 
       // Health bar background
       hero.healthBarBg = this.add
-        .rectangle(this.leftColumnX + 50, y, 100, 12, 0xeeeeee)
-        .setStrokeStyle(1, 0x000000)
+        .rectangle(this.leftColumnX - 45, y + 10, 150, 16, 0x334155)
+        .setStrokeStyle(2, 0x475569)
+        .setOrigin(0, 0.5)
 
       // Health bar (green)
       const healthPercent = hero.health / hero.maxHealth
       hero.healthBar = this.add
         .rectangle(
-          this.leftColumnX + 50,
-          y,
-          100 * healthPercent,
-          12,
-          0x4caf50
+          this.leftColumnX - 45,
+          y + 10,
+          150 * healthPercent,
+          16,
+          0x10b981
         )
-        .setOrigin(0.5, 0.5)
-    })
+        .setOrigin(0, 0.5)
 
-    // Player 2 Section (Right)
-    this.add
-      .text(this.rightColumnX, panelY - panelHeight / 2 + 30, 'Player 2', {
-        fontSize: '20px',
-        color: '#000000',
-        fontStyle: 'bold'
-      })
-      .setOrigin(0.5)
+      // Health text
+      hero.healthText = this.add
+        .text(this.leftColumnX + 30, y + 10, `${Math.ceil(hero.health)}/${hero.maxHealth}`, {
+          fontFamily: '"Press Start 2P"',
+          fontSize: '8px',
+          color: '#ffffff'
+        })
+        .setOrigin(0.5)
+    })
 
     // Player 2 Heroes
     this.player2Heroes.forEach((hero, index) => {
       const y = this.heroStartY + index * heroSpacing
-      
+
+      // Hero card background
+      const cardBg = this.add.graphics()
+      cardBg.fillStyle(0x1e293b, 0.8)
+      cardBg.fillRect(this.rightColumnX - 120, y - 30, 240, 60)
+      cardBg.lineStyle(2, 0x475569)
+      cardBg.strokeRect(this.rightColumnX - 120, y - 30, 240, 60)
+
+      // Hero image on the right
+      hero.heroImage = this.add.image(this.rightColumnX + 95, y, hero.id)
+      const imageScale = Math.min(45 / hero.heroImage.width, 50 / hero.heroImage.height)
+      hero.heroImage.setScale(imageScale)
+
       // Hero name
       this.add
-        .text(this.rightColumnX - 50, y, hero.name, {
-          fontSize: '14px',
-          color: '#000000'
+        .text(this.rightColumnX + 45, y - 15, hero.name.toUpperCase(), {
+          fontFamily: '"Press Start 2P"',
+          fontSize: '10px',
+          color: '#fbbf24'
         })
         .setOrigin(1, 0.5)
 
       // Health bar background
       hero.healthBarBg = this.add
-        .rectangle(this.rightColumnX - 50, y, 100, 12, 0xeeeeee)
-        .setStrokeStyle(1, 0x000000)
+        .rectangle(this.rightColumnX - 105, y + 10, 150, 16, 0x334155)
+        .setStrokeStyle(2, 0x475569)
+        .setOrigin(0, 0.5)
 
       // Health bar (green)
       const healthPercent = hero.health / hero.maxHealth
       hero.healthBar = this.add
         .rectangle(
-          this.rightColumnX - 50,
-          y,
-          100 * healthPercent,
-          12,
-          0x4caf50
+          this.rightColumnX - 105,
+          y + 10,
+          150 * healthPercent,
+          16,
+          0x10b981
         )
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0, 0.5)
 
-      // Portrait placeholder (square on right)
-      this.add
-        .rectangle(this.rightColumnX + 80, y, 30, 30, 0xcccccc)
-        .setStrokeStyle(1, 0x000000)
+      // Health text
+      hero.healthText = this.add
+        .text(this.rightColumnX - 30, y + 10, `${Math.ceil(hero.health)}/${hero.maxHealth}`, {
+          fontFamily: '"Press Start 2P"',
+          fontSize: '8px',
+          color: '#ffffff'
+        })
+        .setOrigin(0.5)
     })
 
-    // Center Section - Battle Narrative
-    const narrativeStartY = this.heroStartY
-    const narrativeHeight = panelHeight - 120
-    const maxLogLines = Math.floor(narrativeHeight / 25)
+    // Center Section - Battle Log Panel
+    const logPanelY = height / 2 + 50
+    const logPanelWidth = 500
+    const logPanelHeight = 300
 
-    // Initialize battle log with some example events
-    this.battleLog = [
-      'Kael received an arrow on his chest',
-      'Kael tripped and hit his head on a rock',
-      'Kael got in a fight and lost his sword',
-      'Kael hit Kael with the sword',
-      'Kael hit Kael with the sword',
-      'Kael hit Kael with the sword'
-    ]
+    // Log panel background
+    const logPanel = this.add.graphics()
+    logPanel.fillStyle(0x0f172a, 0.9)
+    logPanel.fillRect(centerColumnX - logPanelWidth / 2, logPanelY - logPanelHeight / 2, logPanelWidth, logPanelHeight)
+    logPanel.lineStyle(3, 0xfbbf24, 0.5)
+    logPanel.strokeRect(centerColumnX - logPanelWidth / 2, logPanelY - logPanelHeight / 2, logPanelWidth, logPanelHeight)
+
+    // Log panel title
+    this.add
+      .text(centerColumnX, logPanelY - logPanelHeight / 2 + 20, '— BATTLE LOG —', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+
+    const narrativeStartY = logPanelY - logPanelHeight / 2 + 50
+    const maxLogLines = 10
+
+    // Initialize battle log with starting message
+    this.battleLog = ['The battle begins...']
 
     // Display battle log
     this.updateBattleLog(centerColumnX, narrativeStartY, maxLogLines)
@@ -248,18 +335,19 @@ export default class BattleScene extends Phaser.Scene {
 
     // Display the most recent log entries
     const displayLog = this.battleLog.slice(-maxLines)
-    const lineSpacing = 25
+    const lineSpacing = 22
 
     displayLog.forEach((logEntry, index) => {
       const y = startY + index * lineSpacing
       const logText = this.add
         .text(centerX, y, logEntry, {
-          fontSize: '12px',
-          color: '#666666',
-          wordWrap: { width: 400 }
+          fontFamily: '"Press Start 2P"',
+          fontSize: '8px',
+          color: '#e2e8f0',
+          wordWrap: { width: 450 }
         })
         .setOrigin(0.5, 0)
-      
+
       this.logTexts.push(logText)
     })
   }
@@ -283,39 +371,47 @@ export default class BattleScene extends Phaser.Scene {
       return
     }
 
-    // Generate random battle events
-    const events = [
-      'Kael received an arrow on his chest',
-      'Kael tripped and hit his head on a rock',
-      'Kael got in a fight and lost his sword',
-      'Kael hit Kael with the sword',
-      'Kael dodged an attack',
-      'Kael healed for 5 health',
-      'Kael cast a fire spell',
-      'Kael blocked with his shield'
+    // Pick random attacker and defender
+    const attackerTeam = Math.random() > 0.5 ? this.player1Heroes : this.player2Heroes
+    const defenderTeam = attackerTeam === this.player1Heroes ? this.player2Heroes : this.player1Heroes
+
+    // Filter out dead heroes
+    const aliveAttackers = attackerTeam.filter(h => h.health > 0)
+    const aliveDefenders = defenderTeam.filter(h => h.health > 0)
+
+    if (aliveAttackers.length === 0 || aliveDefenders.length === 0) {
+      return
+    }
+
+    const attacker = aliveAttackers[Math.floor(Math.random() * aliveAttackers.length)]
+    const defender = aliveDefenders[Math.floor(Math.random() * aliveDefenders.length)]
+
+    // Generate battle events with actual hero names
+    const eventTemplates = [
+      `${attacker.name} attacks ${defender.name} with their sword`,
+      `${defender.name} takes an arrow from ${attacker.name}`,
+      `${attacker.name} casts a spell on ${defender.name}`,
+      `${defender.name} blocks ${attacker.name}'s attack`,
+      `${attacker.name} lands a critical hit on ${defender.name}`,
+      `${defender.name} dodges ${attacker.name}'s strike`,
     ]
 
-    const randomEvent = events[Math.floor(Math.random() * events.length)]
+    const randomEvent = eventTemplates[Math.floor(Math.random() * eventTemplates.length)]
     this.battleLog.push(randomEvent)
 
-    // Update health bars randomly
-    if (Math.random() > 0.5) {
-      const randomHero = this.player1Heroes[Math.floor(Math.random() * this.player1Heroes.length)]
-      const damage = Math.floor(Math.random() * 20) + 5
-      randomHero.health = Math.max(0, randomHero.health - damage)
-    } else {
-      const randomHero = this.player2Heroes[Math.floor(Math.random() * this.player2Heroes.length)]
-      const damage = Math.floor(Math.random() * 20) + 5
-      randomHero.health = Math.max(0, randomHero.health - damage)
-    }
+    // Apply damage
+    const damage = Math.floor(Math.random() * 20) + 5
+    defender.health = Math.max(0, defender.health - damage)
 
     // Increment turn
     this.currentTurn++
-    this.turnIndicator.setText(this.currentTurn.toString())
+    this.turnIndicator.setText(`Turn: ${this.currentTurn}`)
 
     // Update display
     this.updateHealthBars()
-    this.updateBattleLog(this.cameras.main.width / 2, this.cameras.main.height / 2 - 200, 15)
+    const centerX = this.cameras.main.width / 2
+    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+    this.updateBattleLog(centerX, logStartY, 10)
 
     // Check if battle ended after this turn
     this.checkBattleEnd()
@@ -354,7 +450,9 @@ export default class BattleScene extends Phaser.Scene {
 
     // Add final battle log entry
     this.battleLog.push(`${winnerName} has won the battle!`)
-    this.updateBattleLog(this.cameras.main.width / 2, this.cameras.main.height / 2 - 200, 15)
+    const centerX = this.cameras.main.width / 2
+    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+    this.updateBattleLog(centerX, logStartY, 10)
 
     // Transition to winner scene after a short delay
     this.time.delayedCall(2000, () => {
@@ -368,18 +466,34 @@ export default class BattleScene extends Phaser.Scene {
 
   private updateHealthBars() {
     // Update Player 1 health bars
-    this.player1Heroes.forEach((hero) => {
-      if (hero.healthBar) {
+    this.player1Heroes.forEach((hero, index) => {
+      if (hero.healthBar && hero.healthText) {
         const healthPercent = hero.health / hero.maxHealth
-        hero.healthBar.setSize(100 * healthPercent, 12)
+        const y = this.heroStartY + index * 80
+        hero.healthBar.setSize(150 * healthPercent, 16)
+        hero.healthText.setText(`${Math.ceil(hero.health)}/${hero.maxHealth}`)
+
+        // Gray out dead heroes
+        if (hero.health <= 0 && hero.heroImage) {
+          hero.heroImage.setTint(0x666666)
+          hero.heroImage.setAlpha(0.5)
+        }
       }
     })
 
     // Update Player 2 health bars
-    this.player2Heroes.forEach((hero) => {
-      if (hero.healthBar) {
+    this.player2Heroes.forEach((hero, index) => {
+      if (hero.healthBar && hero.healthText) {
         const healthPercent = hero.health / hero.maxHealth
-        hero.healthBar.setSize(100 * healthPercent, 12)
+        const y = this.heroStartY + index * 80
+        hero.healthBar.setSize(150 * healthPercent, 16)
+        hero.healthText.setText(`${Math.ceil(hero.health)}/${hero.maxHealth}`)
+
+        // Gray out dead heroes
+        if (hero.health <= 0 && hero.heroImage) {
+          hero.heroImage.setTint(0x666666)
+          hero.heroImage.setAlpha(0.5)
+        }
       }
     })
   }
