@@ -148,7 +148,7 @@ export default class BattleScene extends Phaser.Scene {
     this.initParticleSystems()
 
     // Title banner at top
-    const bannerHeight = 100
+    const bannerHeight = 120
     const bannerBg = this.add.graphics()
     bannerBg.fillGradientStyle(0x0f172a, 0x0f172a, 0x0f172a, 0x0f172a, 1, 1, 0, 0)
     bannerBg.fillRect(0, 0, width, bannerHeight)
@@ -187,9 +187,9 @@ export default class BattleScene extends Phaser.Scene {
 
     // Battle title
     this.add
-      .text(width / 2, 35, '⚔ BATTLE ARENA ⚔', {
+      .text(width / 2, 40, '⚔ BATTLE ARENA ⚔', {
         fontFamily: '"Press Start 2P"',
-        fontSize: '20px',
+        fontSize: '28px',
         color: '#fbbf24'
       })
       .setOrigin(0.5)
@@ -197,18 +197,18 @@ export default class BattleScene extends Phaser.Scene {
 
     // Turn indicator
     this.turnIndicator = this.add
-      .text(width / 2, 70, `${this.player1Name}'s Turn`, {
+      .text(width / 2, 80, `${this.player1Name}'s Turn`, {
         fontFamily: '"Press Start 2P"',
-        fontSize: '10px',
+        fontSize: '14px',
         color: '#fbbf24'
       })
       .setOrigin(0.5)
 
     // Instruction text
     this.instructionText = this.add
-      .text(width / 2, 95, 'Select your attacker', {
+      .text(width / 2, 105, 'Select your attacker', {
         fontFamily: '"Press Start 2P"',
-        fontSize: '9px',
+        fontSize: '12px',
         color: '#10b981'
       })
       .setOrigin(0.5)
@@ -219,19 +219,19 @@ export default class BattleScene extends Phaser.Scene {
     this.rightColumnX = width * 0.8
 
     // Player names with banners
-    const playerBannerY = 140
+    const playerBannerY = 160
 
     // Player 1 banner
     const p1Banner = this.add.graphics()
     p1Banner.fillStyle(0x1e293b, 0.9)
-    p1Banner.fillRect(this.leftColumnX - 120, playerBannerY - 20, 240, 40)
-    p1Banner.lineStyle(2, 0xfbbf24, 0.5)
-    p1Banner.strokeRect(this.leftColumnX - 120, playerBannerY - 20, 240, 40)
+    p1Banner.fillRect(this.leftColumnX - 150, playerBannerY - 25, 300, 50)
+    p1Banner.lineStyle(3, 0xfbbf24, 0.5)
+    p1Banner.strokeRect(this.leftColumnX - 150, playerBannerY - 25, 300, 50)
 
     this.add
       .text(this.leftColumnX, playerBannerY, this.player1Name, {
         fontFamily: '"Press Start 2P"',
-        fontSize: '14px',
+        fontSize: '18px',
         color: '#fbbf24'
       })
       .setOrigin(0.5)
@@ -239,20 +239,20 @@ export default class BattleScene extends Phaser.Scene {
     // Player 2 banner
     const p2Banner = this.add.graphics()
     p2Banner.fillStyle(0x1e293b, 0.9)
-    p2Banner.fillRect(this.rightColumnX - 120, playerBannerY - 20, 240, 40)
-    p2Banner.lineStyle(2, 0xfbbf24, 0.5)
-    p2Banner.strokeRect(this.rightColumnX - 120, playerBannerY - 20, 240, 40)
+    p2Banner.fillRect(this.rightColumnX - 150, playerBannerY - 25, 300, 50)
+    p2Banner.lineStyle(3, 0xfbbf24, 0.5)
+    p2Banner.strokeRect(this.rightColumnX - 150, playerBannerY - 25, 300, 50)
 
     this.add
       .text(this.rightColumnX, playerBannerY, this.player2Name, {
         fontFamily: '"Press Start 2P"',
-        fontSize: '14px',
+        fontSize: '18px',
         color: '#fbbf24'
       })
       .setOrigin(0.5)
 
-    this.heroStartY = 220
-    const heroSpacing = 80
+    this.heroStartY = 250
+    const heroSpacing = 110
 
     // Player 1 Heroes
     this.player1Heroes.forEach((hero, index) => {
@@ -261,52 +261,52 @@ export default class BattleScene extends Phaser.Scene {
       // Hero card background
       const cardBg = this.add.graphics()
       cardBg.fillStyle(0x1e293b, 0.8)
-      cardBg.fillRect(this.leftColumnX - 120, y - 30, 240, 60)
-      cardBg.lineStyle(2, 0x475569)
-      cardBg.strokeRect(this.leftColumnX - 120, y - 30, 240, 60)
+      cardBg.fillRect(this.leftColumnX - 150, y - 45, 300, 90)
+      cardBg.lineStyle(3, 0x475569)
+      cardBg.strokeRect(this.leftColumnX - 150, y - 45, 300, 90)
 
       // Hero image on the left
-      hero.heroImage = this.add.image(this.leftColumnX - 95, y, hero.id)
-      const imageScale = Math.min(45 / hero.heroImage.width, 50 / hero.heroImage.height)
+      hero.heroImage = this.add.image(this.leftColumnX - 115, y, hero.id)
+      const imageScale = Math.min(70 / hero.heroImage.width, 80 / hero.heroImage.height)
       hero.heroImage.setScale(imageScale)
-      hero.heroImage.setInteractive({ useHandCursor: true })
+      hero.heroImage.setInteractive({ useHandCursor: true, pixelPerfect: false })
 
       // Add click handler for hero selection
       hero.heroImage.on('pointerdown', () => this.onHeroClick(hero, 'player1'))
 
       // Hero name - ensure it fits within the card
       this.add
-        .text(this.leftColumnX - 45, y - 15, hero.name.toUpperCase(), {
+        .text(this.leftColumnX - 35, y - 25, hero.name.toUpperCase(), {
           fontFamily: '"Press Start 2P"',
-          fontSize: '8px',
+          fontSize: '11px',
           color: '#fbbf24',
-          wordWrap: { width: 140, useAdvancedWrap: true }
+          wordWrap: { width: 160, useAdvancedWrap: true }
         })
         .setOrigin(0, 0.5)
 
       // Health bar background
       hero.healthBarBg = this.add
-        .rectangle(this.leftColumnX - 45, y + 10, 150, 16, 0x334155)
-        .setStrokeStyle(2, 0x475569)
+        .rectangle(this.leftColumnX - 35, y + 15, 170, 22, 0x334155)
+        .setStrokeStyle(3, 0x475569)
         .setOrigin(0, 0.5)
 
       // Health bar (green)
       const healthPercent = hero.health / hero.maxHealth
       hero.healthBar = this.add
         .rectangle(
-          this.leftColumnX - 45,
-          y + 10,
-          150 * healthPercent,
-          16,
+          this.leftColumnX - 35,
+          y + 15,
+          170 * healthPercent,
+          22,
           0x10b981
         )
         .setOrigin(0, 0.5)
 
       // Health text - centered on health bar
       hero.healthText = this.add
-        .text(this.leftColumnX + 30, y + 10, `${Math.ceil(hero.health)}/${hero.maxHealth}`, {
+        .text(this.leftColumnX + 50, y + 15, `${Math.ceil(hero.health)}/${hero.maxHealth}`, {
           fontFamily: '"Press Start 2P"',
-          fontSize: '7px',
+          fontSize: '10px',
           color: '#ffffff'
         })
         .setOrigin(0.5)
@@ -320,52 +320,52 @@ export default class BattleScene extends Phaser.Scene {
       // Hero card background
       const cardBg = this.add.graphics()
       cardBg.fillStyle(0x1e293b, 0.8)
-      cardBg.fillRect(this.rightColumnX - 120, y - 30, 240, 60)
-      cardBg.lineStyle(2, 0x475569)
-      cardBg.strokeRect(this.rightColumnX - 120, y - 30, 240, 60)
+      cardBg.fillRect(this.rightColumnX - 150, y - 45, 300, 90)
+      cardBg.lineStyle(3, 0x475569)
+      cardBg.strokeRect(this.rightColumnX - 150, y - 45, 300, 90)
 
       // Hero image on the right
-      hero.heroImage = this.add.image(this.rightColumnX + 95, y, hero.id)
-      const imageScale = Math.min(45 / hero.heroImage.width, 50 / hero.heroImage.height)
+      hero.heroImage = this.add.image(this.rightColumnX + 115, y, hero.id)
+      const imageScale = Math.min(70 / hero.heroImage.width, 80 / hero.heroImage.height)
       hero.heroImage.setScale(imageScale)
-      hero.heroImage.setInteractive({ useHandCursor: true })
+      hero.heroImage.setInteractive({ useHandCursor: true, pixelPerfect: false })
 
       // Add click handler for hero selection
       hero.heroImage.on('pointerdown', () => this.onHeroClick(hero, 'player2'))
 
       // Hero name - ensure it fits within the card
       this.add
-        .text(this.rightColumnX + 45, y - 15, hero.name.toUpperCase(), {
+        .text(this.rightColumnX + 35, y - 25, hero.name.toUpperCase(), {
           fontFamily: '"Press Start 2P"',
-          fontSize: '8px',
+          fontSize: '11px',
           color: '#fbbf24',
-          wordWrap: { width: 140, useAdvancedWrap: true }
+          wordWrap: { width: 160, useAdvancedWrap: true }
         })
         .setOrigin(1, 0.5)
 
       // Health bar background
       hero.healthBarBg = this.add
-        .rectangle(this.rightColumnX - 105, y + 10, 150, 16, 0x334155)
-        .setStrokeStyle(2, 0x475569)
+        .rectangle(this.rightColumnX - 135, y + 15, 170, 22, 0x334155)
+        .setStrokeStyle(3, 0x475569)
         .setOrigin(0, 0.5)
 
       // Health bar (green)
       const healthPercent = hero.health / hero.maxHealth
       hero.healthBar = this.add
         .rectangle(
-          this.rightColumnX - 105,
-          y + 10,
-          150 * healthPercent,
-          16,
+          this.rightColumnX - 135,
+          y + 15,
+          170 * healthPercent,
+          22,
           0x10b981
         )
         .setOrigin(0, 0.5)
 
       // Health text - centered on health bar
       hero.healthText = this.add
-        .text(this.rightColumnX - 30, y + 10, `${Math.ceil(hero.health)}/${hero.maxHealth}`, {
+        .text(this.rightColumnX - 50, y + 15, `${Math.ceil(hero.health)}/${hero.maxHealth}`, {
           fontFamily: '"Press Start 2P"',
-          fontSize: '7px',
+          fontSize: '10px',
           color: '#ffffff'
         })
         .setOrigin(0.5)
@@ -373,27 +373,27 @@ export default class BattleScene extends Phaser.Scene {
     })
 
     // Center Section - Battle Log Panel
-    const logPanelY = height / 2 + 50
-    const logPanelWidth = 500
-    const logPanelHeight = 300
+    const logPanelY = height / 2 + 100
+    const logPanelWidth = 600
+    const logPanelHeight = 380
 
     // Log panel background
     const logPanel = this.add.graphics()
     logPanel.fillStyle(0x0f172a, 0.9)
     logPanel.fillRect(centerColumnX - logPanelWidth / 2, logPanelY - logPanelHeight / 2, logPanelWidth, logPanelHeight)
-    logPanel.lineStyle(3, 0xfbbf24, 0.5)
+    logPanel.lineStyle(4, 0xfbbf24, 0.5)
     logPanel.strokeRect(centerColumnX - logPanelWidth / 2, logPanelY - logPanelHeight / 2, logPanelWidth, logPanelHeight)
 
     // Log panel title
     this.add
-      .text(centerColumnX, logPanelY - logPanelHeight / 2 + 20, '— BATTLE LOG —', {
+      .text(centerColumnX, logPanelY - logPanelHeight / 2 + 25, '— BATTLE LOG —', {
         fontFamily: '"Press Start 2P"',
-        fontSize: '10px',
+        fontSize: '14px',
         color: '#fbbf24'
       })
       .setOrigin(0.5)
 
-    const narrativeStartY = logPanelY - logPanelHeight / 2 + 50
+    const narrativeStartY = logPanelY - logPanelHeight / 2 + 60
     const maxLogLines = 10
 
     // Initialize battle log (will be populated when battle starts)
@@ -404,14 +404,14 @@ export default class BattleScene extends Phaser.Scene {
 
     // Back button (top left corner) - consistent styling
     const backButton = this.add
-      .rectangle(50, 30, 120, 40, 0x6b7280)
+      .rectangle(80, 40, 140, 50, 0x6b7280)
       .setStrokeStyle(3, 0x9ca3af)
       .setInteractive({ useHandCursor: true })
 
     this.add
-      .text(50, 30, 'BACK', {
+      .text(80, 40, 'BACK', {
         fontFamily: '"Press Start 2P"',
-        fontSize: '14px',
+        fontSize: '16px',
         color: '#ffffff'
       })
       .setOrigin(0.5)
@@ -562,19 +562,19 @@ export default class BattleScene extends Phaser.Scene {
 
     // Display the most recent log entries
     const displayLog = this.battleLog.slice(-maxLines)
-    const lineSpacing = 22
+    const lineSpacing = 28
 
     displayLog.forEach((logEntry, index) => {
       const y = startY + index * lineSpacing
       const isNew = index === displayLog.length - 1
       const isCritical = logEntry.includes('CRITICAL')
-      
+
       const logText = this.add
         .text(centerX, y, logEntry, {
           fontFamily: '"Press Start 2P"',
-          fontSize: isCritical ? '9px' : '8px',
+          fontSize: isCritical ? '12px' : '11px',
           color: isCritical ? '#ffd700' : '#e2e8f0',
-          wordWrap: { width: 450 },
+          wordWrap: { width: 550 },
           stroke: isCritical ? '#000000' : undefined,
           strokeThickness: isCritical ? 2 : 0
         })
@@ -620,7 +620,7 @@ export default class BattleScene extends Phaser.Scene {
     this.battleLog.push('⚔ The battle begins! ⚔')
     this.battleLog.push(`${this.player1Name} goes first!`)
     const centerX = this.cameras.main.width / 2
-    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+    const logStartY = this.cameras.main.height / 2 + 100 - 380 / 2 + 60
     this.updateBattleLog(centerX, logStartY, 10)
 
     // Enable hero selection for player 1
@@ -836,7 +836,7 @@ export default class BattleScene extends Phaser.Scene {
     // Update display
     this.updateHealthBars()
     const centerX = this.cameras.main.width / 2
-    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+    const logStartY = this.cameras.main.height / 2 + 100 - 380 / 2 + 60
     this.updateBattleLog(centerX, logStartY, 10)
   }
 
@@ -932,7 +932,7 @@ export default class BattleScene extends Phaser.Scene {
     // Add log message
     this.battleLog.push(`--- ${currentPlayerName}'s turn! ---`)
     const centerX = this.cameras.main.width / 2
-    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+    const logStartY = this.cameras.main.height / 2 + 100 - 380 / 2 + 60
     this.updateBattleLog(centerX, logStartY, 10)
   }
 
@@ -971,7 +971,7 @@ export default class BattleScene extends Phaser.Scene {
     // Add final battle log entry
     this.battleLog.push(`${winnerName} has won the battle!`)
     const centerX = this.cameras.main.width / 2
-    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+    const logStartY = this.cameras.main.height / 2 + 100 - 380 / 2 + 60
     this.updateBattleLog(centerX, logStartY, 10)
 
     // Victory celebration effects
@@ -1057,7 +1057,7 @@ export default class BattleScene extends Phaser.Scene {
     this.player1Heroes.forEach((hero) => {
       if (hero.healthBar && hero.healthText) {
         const healthPercent = hero.health / hero.maxHealth
-        const newWidth = 150 * healthPercent
+        const newWidth = 170 * healthPercent
         
         // Animate health bar decrease
         this.tweens.add({
@@ -1106,7 +1106,7 @@ export default class BattleScene extends Phaser.Scene {
     this.player2Heroes.forEach((hero) => {
       if (hero.healthBar && hero.healthText) {
         const healthPercent = hero.health / hero.maxHealth
-        const newWidth = 150 * healthPercent
+        const newWidth = 170 * healthPercent
         
         // Animate health bar decrease
         this.tweens.add({
