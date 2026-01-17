@@ -292,10 +292,11 @@ export default class Player2HeroSelectScene extends Phaser.Scene {
   }
 
   private proceedToNextScene() {
-    // Go to VS scene first, then battle
-    this.scene.start('VSBattleScene', {
+    // Go to Player 2's level up screen
+    this.scene.start('HeroLevelUpScene', {
       player1Name: this.player1Name,
-      player2Name: this.player2Name
+      player2Name: this.player2Name,
+      currentPlayer: this.player2Name
     })
   }
 }

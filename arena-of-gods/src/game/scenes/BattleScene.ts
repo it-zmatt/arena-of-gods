@@ -1,7 +1,6 @@
 import Phaser from 'phaser'
 import { HEROES } from '../constants/heroes'
 import type { HeroAttributes } from '../constants/heroes'
-import GeminiService from '../services/GeminiService'
 import type { CombatContext, HeroContext } from '../types/gemini'
 
 const BACKGROUNDS = ['forest', 'river', 'volcanic_river', 'plains', 'fortress']
@@ -35,20 +34,18 @@ export default class BattleScene extends Phaser.Scene {
   private heroStartY!: number
   private battleTimer!: Phaser.Time.TimerEvent
   private battleEnded: boolean = false
-  private particleManager!: any
   private attackParticles!: Phaser.GameObjects.Particles.ParticleEmitter
   private criticalParticles!: Phaser.GameObjects.Particles.ParticleEmitter
   private healParticles!: Phaser.GameObjects.Particles.ParticleEmitter
   private deathParticles!: Phaser.GameObjects.Particles.ParticleEmitter
-  private geminiService!: GeminiService
+  private geminiService!: any
+  private characterMetadata!: any[]
   private currentEnvironment!: string
   private isProcessingTurn: boolean = false
   private loadingText?: Phaser.GameObjects.Text
 
-
   constructor() {
     super('BattleScene')
-    this.geminiService = new GeminiService()
   }
 
   init(data: { player1Name: string; player2Name: string }) {
@@ -70,6 +67,29 @@ export default class BattleScene extends Phaser.Scene {
   create() {
     const { width, height } = this.cameras.main
 
+    // Fade in transition
+    this.cameras.main.fadeIn(500, 0, 0, 0)
+
+    // Initialize Gemini service if available
+    try {
+      // Dynamic import for GeminiService
+      import('../services/GeminiService').then((module) => {
+        this.geminiService = new module.default()
+      }).catch((e) => {
+        console.warn('GeminiService not available, using fallback', e)
+        this.geminiService = null
+      })
+    } catch (e) {
+      console.warn('GeminiService not available, using fallback', e)
+      this.geminiService = null
+    }
+
+    // Load character metadata (with fallback)
+    try {
+      this.characterMetadata = this.cache.json.get('characterData')?.characters || []
+    } catch (e) {
+      this.characterMetadata = []
+    }
     // Random background
     const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
     this.currentEnvironment = randomBg
@@ -388,16 +408,9 @@ export default class BattleScene extends Phaser.Scene {
     graphics.generateTexture('particle', 8, 8)
     graphics.destroy()
 
-    // Create particle manager
-    this.particleManager = this.add.particles(0, 0, 'particle', {
-      scale: { start: 0.3, end: 0 },
-      speed: { min: 50, max: 150 },
-      lifespan: 500,
-      quantity: 1
-    })
-
-    // Attack particles (red/orange)
-    this.attackParticles = this.particleManager.createEmitter({
+    // Create particle managers directly (newer Phaser API - no createEmitter needed)
+    // Attack particles (red/orange) - positioned at 0,0, will be moved when used
+    const attackManager = this.add.particles(0, 0, 'particle', {
       tint: [0xff4444, 0xff8844, 0xffaa44],
       scale: { start: 0.5, end: 0 },
       speed: { min: 100, max: 200 },
@@ -405,10 +418,14 @@ export default class BattleScene extends Phaser.Scene {
       quantity: 15,
       frequency: -1
     })
-    this.attackParticles.stop()
+    // Get the default emitter from the manager
+    this.attackParticles = (attackManager as any).emitters?.list?.[0] || attackManager
+    if (this.attackParticles && typeof this.attackParticles.stop === 'function') {
+      this.attackParticles.stop()
+    }
 
     // Critical hit particles (gold/yellow)
-    this.criticalParticles = this.particleManager.createEmitter({
+    const criticalManager = this.add.particles(0, 0, 'particle', {
       tint: [0xffd700, 0xffff00, 0xffaa00],
       scale: { start: 0.8, end: 0 },
       speed: { min: 150, max: 300 },
@@ -417,10 +434,13 @@ export default class BattleScene extends Phaser.Scene {
       frequency: -1,
       blendMode: 'ADD'
     })
-    this.criticalParticles.stop()
+    this.criticalParticles = (criticalManager as any).emitters?.list?.[0] || criticalManager
+    if (this.criticalParticles && typeof this.criticalParticles.stop === 'function') {
+      this.criticalParticles.stop()
+    }
 
     // Heal particles (green)
-    this.healParticles = this.particleManager.createEmitter({
+    const healManager = this.add.particles(0, 0, 'particle', {
       tint: [0x44ff44, 0x88ff88, 0x44ff88],
       scale: { start: 0.4, end: 0 },
       speed: { min: 80, max: 150 },
@@ -428,10 +448,13 @@ export default class BattleScene extends Phaser.Scene {
       quantity: 12,
       frequency: -1
     })
-    this.healParticles.stop()
+    this.healParticles = (healManager as any).emitters?.list?.[0] || healManager
+    if (this.healParticles && typeof this.healParticles.stop === 'function') {
+      this.healParticles.stop()
+    }
 
     // Death particles (gray/black)
-    this.deathParticles = this.particleManager.createEmitter({
+    const deathManager = this.add.particles(0, 0, 'particle', {
       tint: [0x666666, 0x444444, 0x000000],
       scale: { start: 0.5, end: 0 },
       speed: { min: 80, max: 150 },
@@ -439,7 +462,10 @@ export default class BattleScene extends Phaser.Scene {
       quantity: 20,
       frequency: -1
     })
-    this.deathParticles.stop()
+    this.deathParticles = (deathManager as any).emitters?.list?.[0] || deathManager
+    if (this.deathParticles && typeof this.deathParticles.stop === 'function') {
+      this.deathParticles.stop()
+    }
   }
 
   private animateHeroEntrance() {
@@ -595,8 +621,22 @@ export default class BattleScene extends Phaser.Scene {
         battleEnvironment: this.currentEnvironment
       }
 
-      // Call Gemini API
-      const response = await this.geminiService.generateBattleOutcome(context)
+      // Call Gemini API (with fallback if service not available)
+      let response
+      if (this.geminiService && typeof this.geminiService.generateBattleOutcome === 'function') {
+        response = await this.geminiService.generateBattleOutcome(context)
+      } else {
+        // Fallback to simple battle logic
+        response = {
+          success: true,
+          outcome: {
+            narrative: `${attacker.name} attacks ${defender.name}!`,
+            attackSuccess: true,
+            damage: Math.floor(Math.random() * 20) + 5,
+            criticalHit: Math.random() < 0.1
+          }
+        }
+      }
 
       this.hideLoadingIndicator()
 
@@ -731,11 +771,16 @@ export default class BattleScene extends Phaser.Scene {
     // Celebration particles
     for (let i = 0; i < 5; i++) {
       this.time.delayedCall(i * 200, () => {
-        this.criticalParticles.setPosition(
-          Math.random() * width,
-          Math.random() * height
-        )
-        this.criticalParticles.explode(50)
+        // Move particle manager to position and explode
+        if (this.criticalParticles && typeof this.criticalParticles.setPosition === 'function') {
+          this.criticalParticles.setPosition(
+            Math.random() * width,
+            Math.random() * height
+          )
+          if (typeof this.criticalParticles.explode === 'function') {
+            this.criticalParticles.explode(50)
+          }
+        }
       })
     }
 
@@ -788,8 +833,12 @@ export default class BattleScene extends Phaser.Scene {
           })
           
           // Death particles
-          this.deathParticles.setPosition(hero.heroImage.x, hero.heroImage.y)
-          this.deathParticles.explode(20)
+          if (this.deathParticles && typeof this.deathParticles.setPosition === 'function') {
+            this.deathParticles.setPosition(hero.heroImage.x, hero.heroImage.y)
+            if (typeof this.deathParticles.explode === 'function') {
+              this.deathParticles.explode(20)
+            }
+          }
         }
       }
     })
@@ -833,8 +882,12 @@ export default class BattleScene extends Phaser.Scene {
           })
           
           // Death particles
-          this.deathParticles.setPosition(hero.heroImage.x, hero.heroImage.y)
-          this.deathParticles.explode(20)
+          if (this.deathParticles && typeof this.deathParticles.setPosition === 'function') {
+            this.deathParticles.setPosition(hero.heroImage.x, hero.heroImage.y)
+            if (typeof this.deathParticles.explode === 'function') {
+              this.deathParticles.explode(20)
+            }
+          }
         }
       }
     })

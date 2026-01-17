@@ -654,8 +654,8 @@ export default class HeroLevelUpScene extends Phaser.Scene {
       // Player 2 is done, save their heroes data
       this.registry.set('player2Heroes', this.heroes)
       
-      // Both players are done - start the battle
-      this.scene.start('BattleScene', {
+      // Both players are done - go to VS scene, then battle
+      this.scene.start('VSBattleScene', {
         player1Name: this.player1Name,
         player2Name: this.player2Name
       })
