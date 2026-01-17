@@ -1,13 +1,7 @@
 import Phaser from 'phaser'
+import { HEROES } from '../constants/heroes'
 
 const BACKGROUNDS = ['forest', 'river', 'volcanic_river', 'plains', 'fortress']
-const HEROES = [
-  { id: 'brutus', name: 'Brutus' },
-  { id: 'kael', name: 'Kael' },
-  { id: 'lyra', name: 'Lyra' },
-  { id: 'thea', name: 'Thea' },
-  { id: 'marcus', name: 'Marcus' }
-]
 
 export default class Player2HeroSelectScene extends Phaser.Scene {
   private player1Name!: string
@@ -36,10 +30,23 @@ export default class Player2HeroSelectScene extends Phaser.Scene {
   create() {
     const { width, height } = this.cameras.main
 
+    // Fade in transition
+    this.cameras.main.fadeIn(500, 0, 0, 0)
+
     // Random background (no overlay)
     const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
     const bg = this.add.image(0, 0, `bg_${randomBg}`).setOrigin(0, 0)
     bg.setDisplaySize(width, height)
+
+    // Subtle background animation
+    this.tweens.add({
+      targets: bg,
+      alpha: 0.95,
+      duration: 3000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    })
 
     // Title banner at top
     const bannerHeight = 100
@@ -128,51 +135,165 @@ export default class Player2HeroSelectScene extends Phaser.Scene {
         .setShadow(2, 2, '#000000', 2)
 
       container.add([shadow, cardBg, cardInner, outerBorder, border, charImage, namePlateBg, nameText])
+      
+      // Entrance animation for cards
+      container.setAlpha(0)
+      container.setScale(0.5)
+      this.tweens.add({
+        targets: container,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 500,
+        delay: i * 100,
+        ease: 'Back.easeOut'
+      })
+
+      // Subtle hover animation
+      this.tweens.add({
+        targets: container,
+        y: cardY - 5,
+        duration: 2000,
+        delay: i * 100 + 500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      })
     })
 
-    // Continue button at the bottom
-    const buttonY = height - 80
-    const continueButton = this.add
-      .rectangle(width / 2, buttonY, 200, 50, 0x16a34a)
-      .setStrokeStyle(3, 0xffffff)
+    // Bottom panel with buttons
+    const bottomPanelBg = this.add.graphics()
+    bottomPanelBg.fillGradientStyle(0x0f172a, 0x0f172a, 0x0f172a, 0x0f172a, 0, 0, 1, 1)
+    bottomPanelBg.fillRect(0, height - 80, width, 80)
+
+    // Decorative gold line above bottom panel
+    this.add.rectangle(width / 2, height - 80, width, 2, 0xfbbf24, 0.5)
+
+    // Back button (left)
+    const backButtonWidth = 150
+    const backButtonHeight = 50
+    const buttonY = height - 45
+
+    const backButton = this.add
+      .rectangle(width / 2 - 200, buttonY, backButtonWidth, backButtonHeight, 0x6b7280)
+      .setStrokeStyle(3, 0x9ca3af)
       .setInteractive({ useHandCursor: true })
 
-    const continueText = this.add
-      .text(width / 2, buttonY, 'Continue', {
+    const backButtonText = this.add
+      .text(width / 2 - 200, buttonY, 'BACK', {
         fontFamily: '"Press Start 2P"',
         fontSize: '14px',
         color: '#ffffff'
       })
       .setOrigin(0.5)
+      .setShadow(2, 2, '#000000', 2)
+
+    backButton.on('pointerover', () => {
+      backButton.setFillStyle(0x9ca3af)
+      this.tweens.add({
+        targets: [backButton, backButtonText],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+    })
+
+    backButton.on('pointerout', () => {
+      backButton.setFillStyle(0x6b7280)
+      this.tweens.add({
+        targets: [backButton, backButtonText],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+    })
+
+    backButton.on('pointerdown', () => {
+      this.cameras.main.fadeOut(300, 0, 0, 0)
+      this.time.delayedCall(300, () => {
+        // Go back to Player 1's level up screen
+        this.scene.start('HeroLevelUpScene', {
+          player1Name: this.player1Name,
+          player2Name: this.player2Name,
+          currentPlayer: this.player1Name
+        })
+      })
+    })
+
+    // Continue button (right)
+    const continueButtonWidth = 200
+    const continueButton = this.add
+      .rectangle(width / 2 + 200, buttonY, continueButtonWidth, backButtonHeight, 0x16a34a)
+      .setStrokeStyle(3, 0x22c55e)
       .setInteractive({ useHandCursor: true })
 
-    continueButton.on('pointerdown', () => {
-      this.proceedToNextScene()
-    })
-
-    continueText.on('pointerdown', () => {
-      this.proceedToNextScene()
-    })
+    const continueText = this.add
+      .text(width / 2 + 200, buttonY, 'CONTINUE', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '14px',
+        color: '#ffffff'
+      })
+      .setOrigin(0.5)
+      .setShadow(2, 2, '#000000', 2)
 
     continueButton.on('pointerover', () => {
       continueButton.setFillStyle(0x22c55e)
+      this.tweens.add({
+        targets: [continueButton, continueText],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
     })
 
     continueButton.on('pointerout', () => {
       continueButton.setFillStyle(0x16a34a)
+      this.tweens.add({
+        targets: [continueButton, continueText],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
     })
 
-    continueText.on('pointerover', () => {
-      continueButton.setFillStyle(0x22c55e)
-    })
-
-    continueText.on('pointerout', () => {
-      continueButton.setFillStyle(0x16a34a)
+    continueButton.on('pointerdown', () => {
+      // Celebration effect
+      const { width, height } = this.cameras.main
+      for (let i = 0; i < 20; i++) {
+        this.time.delayedCall(i * 50, () => {
+          const particle = this.add.circle(
+            width / 2 + (Math.random() - 0.5) * 400,
+            height / 2 + (Math.random() - 0.5) * 400,
+            4,
+            0x22c55e
+          )
+          this.tweens.add({
+            targets: particle,
+            y: particle.y - 100,
+            alpha: 0,
+            scaleX: 1.5,
+            scaleY: 1.5,
+            duration: 800,
+            ease: 'Power2',
+            onComplete: () => particle.destroy()
+          })
+        })
+      }
+      
+      this.cameras.main.fadeOut(300, 0, 0, 0)
+      this.time.delayedCall(300, () => {
+        this.proceedToNextScene()
+      })
     })
   }
 
   private proceedToNextScene() {
-    this.scene.start('BattleScene', {
+    // Go to VS scene first, then battle
+    this.scene.start('VSBattleScene', {
       player1Name: this.player1Name,
       player2Name: this.player2Name
     })
