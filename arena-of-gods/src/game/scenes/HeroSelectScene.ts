@@ -71,7 +71,7 @@ export default class HeroSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    // Hero cards section
+    // Hero cards section (non-interactive display)
     const cardWidth = 160
     const cardHeight = 240
     const spacing = 25
@@ -132,44 +132,58 @@ export default class HeroSelectScene extends Phaser.Scene {
       container.add([shadow, cardBg, cardInner, outerBorder, border, charImage, namePlateBg, nameText])
     })
 
-    // Continue button at the bottom
-    const buttonY = height - 80
-    const continueButton = this.add
-      .rectangle(width / 2, buttonY, 200, 50, 0x16a34a)
-      .setStrokeStyle(3, 0xffffff)
+    // Bottom panel with Next button
+    const bottomPanelBg = this.add.graphics()
+    bottomPanelBg.fillGradientStyle(0x0f172a, 0x0f172a, 0x0f172a, 0x0f172a, 0, 0, 1, 1)
+    bottomPanelBg.fillRect(0, height - 80, width, 80)
+
+    // Decorative gold line above bottom panel
+    this.add.rectangle(width / 2, height - 80, width, 2, 0xfbbf24, 0.5)
+
+    // Next button
+    const buttonWidth = 200
+    const buttonHeight = 50
+    const buttonY = height - 45
+
+    const button = this.add
+      .rectangle(width / 2, buttonY, buttonWidth, buttonHeight, 0x16a34a)
+      .setStrokeStyle(3, 0x22c55e)
       .setInteractive({ useHandCursor: true })
 
-    const continueText = this.add
-      .text(width / 2, buttonY, 'Continue', {
+    const buttonText = this.add
+      .text(width / 2, buttonY, 'NEXT', {
         fontFamily: '"Press Start 2P"',
-        fontSize: '14px',
+        fontSize: '16px',
         color: '#ffffff'
       })
       .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
+      .setShadow(2, 2, '#000000', 2)
 
-    continueButton.on('pointerdown', () => {
+    // Button hover effects
+    button.on('pointerover', () => {
+      button.setFillStyle(0x22c55e)
+      this.tweens.add({
+        targets: [button, buttonText],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+    })
+
+    button.on('pointerout', () => {
+      button.setFillStyle(0x16a34a)
+      this.tweens.add({
+        targets: [button, buttonText],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+    })
+
+    button.on('pointerdown', () => {
       this.proceedToNextScene()
-    })
-
-    continueText.on('pointerdown', () => {
-      this.proceedToNextScene()
-    })
-
-    continueButton.on('pointerover', () => {
-      continueButton.setFillStyle(0x22c55e)
-    })
-
-    continueButton.on('pointerout', () => {
-      continueButton.setFillStyle(0x16a34a)
-    })
-
-    continueText.on('pointerover', () => {
-      continueButton.setFillStyle(0x22c55e)
-    })
-
-    continueText.on('pointerout', () => {
-      continueButton.setFillStyle(0x16a34a)
     })
   }
 
@@ -181,4 +195,3 @@ export default class HeroSelectScene extends Phaser.Scene {
     })
   }
 }
-
