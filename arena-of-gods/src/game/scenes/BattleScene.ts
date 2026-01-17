@@ -44,6 +44,13 @@ export default class BattleScene extends Phaser.Scene {
   private isProcessingTurn: boolean = false
   private loadingText?: Phaser.GameObjects.Text
 
+  // New turn-based selection properties
+  private currentPlayerTurn: 'player1' | 'player2' = 'player1'
+  private selectionPhase: 'selectAttacker' | 'selectTarget' | 'combat' = 'selectAttacker'
+  private selectedAttacker?: Hero
+  private selectedTarget?: Hero
+  private instructionText!: Phaser.GameObjects.Text
+
   constructor() {
     super('BattleScene')
   }
@@ -170,10 +177,19 @@ export default class BattleScene extends Phaser.Scene {
 
     // Turn indicator
     this.turnIndicator = this.add
-      .text(width / 2, 70, `Turn: ${this.currentTurn}`, {
+      .text(width / 2, 70, `${this.player1Name}'s Turn`, {
         fontFamily: '"Press Start 2P"',
         fontSize: '10px',
-        color: '#e2e8f0'
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+
+    // Instruction text
+    this.instructionText = this.add
+      .text(width / 2, 95, 'Select your attacker', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '9px',
+        color: '#10b981'
       })
       .setOrigin(0.5)
 
@@ -233,6 +249,10 @@ export default class BattleScene extends Phaser.Scene {
       hero.heroImage = this.add.image(this.leftColumnX - 95, y, hero.id)
       const imageScale = Math.min(45 / hero.heroImage.width, 50 / hero.heroImage.height)
       hero.heroImage.setScale(imageScale)
+      hero.heroImage.setInteractive({ useHandCursor: true })
+
+      // Add click handler for hero selection
+      hero.heroImage.on('pointerdown', () => this.onHeroClick(hero, 'player1'))
 
       // Hero name
       this.add
@@ -286,6 +306,10 @@ export default class BattleScene extends Phaser.Scene {
       hero.heroImage = this.add.image(this.rightColumnX + 95, y, hero.id)
       const imageScale = Math.min(45 / hero.heroImage.width, 50 / hero.heroImage.height)
       hero.heroImage.setScale(imageScale)
+      hero.heroImage.setInteractive({ useHandCursor: true })
+
+      // Add click handler for hero selection
+      hero.heroImage.on('pointerdown', () => this.onHeroClick(hero, 'player2'))
 
       // Hero name
       this.add
@@ -394,9 +418,9 @@ export default class BattleScene extends Phaser.Scene {
     // Entrance animation for heroes
     this.animateHeroEntrance()
 
-    // Start battle simulation after heroes have entered
+    // Initialize turn-based battle after heroes have entered
     this.time.delayedCall(1000, () => {
-      this.startBattleSimulation()
+      this.initializeTurnBasedBattle()
     })
   }
 
@@ -566,90 +590,213 @@ export default class BattleScene extends Phaser.Scene {
     })
   }
 
-  private startBattleSimulation() {
+  private initializeTurnBasedBattle() {
     // Add initial battle start message
     this.battleLog.push('⚔ The battle begins! ⚔')
+    this.battleLog.push(`${this.player1Name} goes first!`)
     const centerX = this.cameras.main.width / 2
     const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
     this.updateBattleLog(centerX, logStartY, 10)
 
-    // Simulate battle events periodically - start immediately, then every 2 seconds
-    this.battleTimer = this.time.addEvent({
-      delay: 2000,
-      callback: () => {
-        if (!this.battleEnded) {
-          this.simulateBattleEvent()
-        }
-      },
-      loop: true
+    // Enable hero selection for player 1
+    this.updateHeroInteractivity()
+  }
+
+  private onHeroClick(hero: Hero, team: 'player1' | 'player2') {
+    // Ignore clicks if battle ended or processing
+    if (this.battleEnded || this.isProcessingTurn) return
+
+    // Ignore dead heroes
+    if (hero.health <= 0) return
+
+    if (this.selectionPhase === 'selectAttacker') {
+      // Can only select from current player's team
+      if (
+        (this.currentPlayerTurn === 'player1' && team === 'player1') ||
+        (this.currentPlayerTurn === 'player2' && team === 'player2')
+      ) {
+        this.selectAttacker(hero)
+      }
+    } else if (this.selectionPhase === 'selectTarget') {
+      // Can only select from opponent's team
+      if (
+        (this.currentPlayerTurn === 'player1' && team === 'player2') ||
+        (this.currentPlayerTurn === 'player2' && team === 'player1')
+      ) {
+        this.selectTarget(hero)
+      }
+    }
+  }
+
+  private selectAttacker(hero: Hero) {
+    this.selectedAttacker = hero
+    this.selectionPhase = 'selectTarget'
+
+    // Update instruction text
+    const opponentName = this.currentPlayerTurn === 'player1' ? this.player2Name : this.player1Name
+    this.instructionText.setText(`Select ${opponentName}'s target`)
+
+    // Add visual feedback - glow effect on selected attacker
+    this.addSelectionGlow(hero)
+
+    // Update interactivity
+    this.updateHeroInteractivity()
+  }
+
+  private selectTarget(hero: Hero) {
+    this.selectedTarget = hero
+    this.selectionPhase = 'combat'
+
+    // Update instruction text
+    this.instructionText.setText('Combat in progress...')
+
+    // Remove glow from attacker
+    this.removeSelectionGlow(this.selectedAttacker!)
+
+    // Disable all hero interactions during combat
+    this.updateHeroInteractivity()
+
+    // Start the 5-exchange combat
+    this.executeCombatRound()
+  }
+
+  private addSelectionGlow(hero: Hero) {
+    if (!hero.heroImage) return
+
+    // Create a glow effect
+    hero.glowEffect = this.add.graphics()
+    const x = hero.heroImage.x
+    const y = hero.heroImage.y
+
+    // Pulsing glow animation
+    this.tweens.add({
+      targets: hero.glowEffect,
+      alpha: 0.3,
+      duration: 500,
+      yoyo: true,
+      repeat: -1
+    })
+
+    // Draw glow
+    hero.glowEffect.lineStyle(4, 0xfbbf24, 1)
+    hero.glowEffect.strokeCircle(x, y, 30)
+  }
+
+  private removeSelectionGlow(hero: Hero) {
+    if (hero.glowEffect) {
+      this.tweens.killTweensOf(hero.glowEffect)
+      hero.glowEffect.destroy()
+      hero.glowEffect = undefined
+    }
+  }
+
+  private updateHeroInteractivity() {
+    // Player 1 heroes
+    this.player1Heroes.forEach(hero => {
+      if (!hero.heroImage || hero.health <= 0) return
+
+      if (this.selectionPhase === 'selectAttacker' && this.currentPlayerTurn === 'player1') {
+        // Enable selection for player 1's heroes
+        hero.heroImage.setAlpha(1)
+        hero.heroImage.setTint(0xffffff)
+      } else if (this.selectionPhase === 'selectTarget' && this.currentPlayerTurn === 'player2') {
+        // Enable targeting for player 1's heroes when it's player 2's turn
+        hero.heroImage.setAlpha(1)
+        hero.heroImage.setTint(0xffffff)
+      } else {
+        // Dim inactive heroes
+        hero.heroImage.setAlpha(0.6)
+        hero.heroImage.setTint(0x888888)
+      }
+    })
+
+    // Player 2 heroes
+    this.player2Heroes.forEach(hero => {
+      if (!hero.heroImage || hero.health <= 0) return
+
+      if (this.selectionPhase === 'selectAttacker' && this.currentPlayerTurn === 'player2') {
+        // Enable selection for player 2's heroes
+        hero.heroImage.setAlpha(1)
+        hero.heroImage.setTint(0xffffff)
+      } else if (this.selectionPhase === 'selectTarget' && this.currentPlayerTurn === 'player1') {
+        // Enable targeting for player 2's heroes when it's player 1's turn
+        hero.heroImage.setAlpha(1)
+        hero.heroImage.setTint(0xffffff)
+      } else {
+        // Dim inactive heroes
+        hero.heroImage.setAlpha(0.6)
+        hero.heroImage.setTint(0x888888)
+      }
     })
   }
 
-  private async simulateBattleEvent() {
-    // Prevent concurrent API calls
-    if (this.isProcessingTurn || this.battleEnded) {
-      return
-    }
+  private async executeCombatRound() {
+    if (!this.selectedAttacker || !this.selectedTarget) return
 
     this.isProcessingTurn = true
 
-    try {
-      // Pick random attacker and defender
-      const attackerTeam = Math.random() > 0.5 ? this.player1Heroes : this.player2Heroes
-      const defenderTeam = attackerTeam === this.player1Heroes ? this.player2Heroes : this.player1Heroes
+    // Execute 5 exchanges between the selected heroes
+    for (let exchange = 1; exchange <= 5; exchange++) {
+      if (this.battleEnded) break
 
-      // Filter out dead heroes
-      const aliveAttackers = attackerTeam.filter(h => h.health > 0)
-      const aliveDefenders = defenderTeam.filter(h => h.health > 0)
-
-      if (aliveAttackers.length === 0 || aliveDefenders.length === 0) {
-        this.isProcessingTurn = false
-        return
+      // Check if either combatant is dead
+      if (this.selectedAttacker.health <= 0 || this.selectedTarget.health <= 0) {
+        break
       }
 
-      const attacker = aliveAttackers[Math.floor(Math.random() * aliveAttackers.length)]
-      const defender = aliveDefenders[Math.floor(Math.random() * aliveDefenders.length)]
+      await this.executeSingleExchange(this.selectedAttacker, this.selectedTarget, exchange)
 
-      // Show loading indicator
-      this.showLoadingIndicator()
+      // Wait between exchanges
+      await new Promise(resolve => setTimeout(resolve, 1500))
+    }
 
-      // Build context with character metadata
-      const context: CombatContext = {
-        attacker: this.buildHeroContext(attacker),
-        defender: this.buildHeroContext(defender),
-        turnNumber: this.currentTurn,
-        battleEnvironment: this.currentEnvironment
-      }
+    // Check if battle ended
+    if (!this.checkBattleEnd()) {
+      // Switch turns
+      this.switchTurns()
+    }
 
-      // Call Gemini API (with fallback if service not available)
-      let response
-      if (this.geminiService && typeof this.geminiService.generateBattleOutcome === 'function') {
-        response = await this.geminiService.generateBattleOutcome(context)
-      } else {
-        // Fallback to simple battle logic
-        response = {
-          success: true,
-          outcome: {
-            narrative: `${attacker.name} attacks ${defender.name}!`,
-            attackSuccess: true,
-            damage: Math.floor(Math.random() * 20) + 5,
-            criticalHit: Math.random() < 0.1
-          }
+    this.isProcessingTurn = false
+  }
+
+  private async executeSingleExchange(attacker: Hero, defender: Hero, exchangeNumber: number) {
+    // Show loading indicator
+    this.showLoadingIndicator()
+
+    // Build context
+    const context: CombatContext = {
+      attacker: this.buildHeroContext(attacker),
+      defender: this.buildHeroContext(defender),
+      turnNumber: this.currentTurn,
+      battleEnvironment: this.currentEnvironment
+    }
+
+    // Call Gemini API
+    let response
+    if (this.geminiService && typeof this.geminiService.generateBattleOutcome === 'function') {
+      response = await this.geminiService.generateBattleOutcome(context)
+    } else {
+      // Fallback
+      response = {
+        success: true,
+        outcome: {
+          narrative: `${attacker.name} attacks ${defender.name}!`,
+          attackSuccess: true,
+          damage: Math.floor(Math.random() * 20) + 5,
+          criticalHit: Math.random() < 0.1
         }
       }
+    }
 
-      this.hideLoadingIndicator()
+    this.hideLoadingIndicator()
 
-      if (!response.success) {
-        console.warn('Gemini API failed, using fallback')
-      }
+    if (response.success && response.outcome) {
+      const outcome = response.outcome
 
-      const outcome = response.outcome!
+      // Update battle log
+      this.battleLog.push(`[Exchange ${exchangeNumber}/5] ${outcome.narrative}`)
 
-      // Update battle log with AI narrative
-      this.battleLog.push(outcome.narrative)
-
-      // Apply stat-based damage
+      // Apply damage
       if (outcome.attackSuccess) {
         defender.health = Math.max(0, defender.health - outcome.damage)
 
@@ -658,25 +805,43 @@ export default class BattleScene extends Phaser.Scene {
         }
       }
 
-      // Increment turn
-      this.currentTurn++
-      this.turnIndicator.setText(`Turn: ${this.currentTurn}`)
-
       // Update display
       this.updateHealthBars()
       const centerX = this.cameras.main.width / 2
       const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
       this.updateBattleLog(centerX, logStartY, 10)
-
-      // Check if battle ended after this turn
-      this.checkBattleEnd()
-
-    } catch (error) {
-      console.error('Battle simulation error:', error)
-    } finally {
-      this.isProcessingTurn = false
     }
   }
+
+  private switchTurns() {
+    // Clear selections
+    this.selectedAttacker = undefined
+    this.selectedTarget = undefined
+
+    // Switch player
+    this.currentPlayerTurn = this.currentPlayerTurn === 'player1' ? 'player2' : 'player1'
+
+    // Reset selection phase
+    this.selectionPhase = 'selectAttacker'
+
+    // Increment turn counter
+    this.currentTurn++
+
+    // Update UI
+    const currentPlayerName = this.currentPlayerTurn === 'player1' ? this.player1Name : this.player2Name
+    this.turnIndicator.setText(`${currentPlayerName}'s Turn`)
+    this.instructionText.setText('Select your attacker')
+
+    // Update hero interactivity
+    this.updateHeroInteractivity()
+
+    // Add log message
+    this.battleLog.push(`--- ${currentPlayerName}'s turn! ---`)
+    const centerX = this.cameras.main.width / 2
+    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+    this.updateBattleLog(centerX, logStartY, 10)
+  }
+
 
   private checkBattleEnd(): boolean {
     // Check if all Player 1 heroes are dead
