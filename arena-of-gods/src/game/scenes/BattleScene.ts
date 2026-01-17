@@ -40,6 +40,10 @@ export default class BattleScene extends Phaser.Scene {
   private criticalParticles!: Phaser.GameObjects.Particles.ParticleEmitter
   private healParticles!: Phaser.GameObjects.Particles.ParticleEmitter
   private deathParticles!: Phaser.GameObjects.Particles.ParticleEmitter
+  private geminiService!: GeminiService
+  private currentEnvironment!: string
+  private isProcessingTurn: boolean = false
+  private loadingText?: Phaser.GameObjects.Text
 
 
   constructor() {
