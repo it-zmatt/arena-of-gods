@@ -160,10 +160,10 @@ export default class BattleScene extends Phaser.Scene {
     const player1HeroesData = this.registry.get('player1Heroes') as HeroAttributes[] || []
     const player2HeroesData = this.registry.get('player2Heroes') as HeroAttributes[] || []
 
-    // Initialize heroes with health (stamina * 10 as max health)
+    // Initialize heroes with health (stamina * 4 as max health - reduced by 60%)
     this.player1Heroes = HEROES.map((hero, index) => {
       const attrs = player1HeroesData[index] || hero.defaultAttributes
-      const maxHealth = attrs.stamina * 10
+      const maxHealth = attrs.stamina * 4
       return {
         id: hero.id,
         name: hero.name,
@@ -175,7 +175,7 @@ export default class BattleScene extends Phaser.Scene {
 
     this.player2Heroes = HEROES.map((hero, index) => {
       const attrs = player2HeroesData[index] || hero.defaultAttributes
-      const maxHealth = attrs.stamina * 10
+      const maxHealth = attrs.stamina * 4
       return {
         id: hero.id,
         name: hero.name,
