@@ -771,45 +771,114 @@ export default class BattleScene extends Phaser.Scene {
       battleEnvironment: this.currentEnvironment
     }
 
-    // Call Gemini API
-    let response
-    if (this.geminiService && typeof this.geminiService.generateBattleOutcome === 'function') {
-      response = await this.geminiService.generateBattleOutcome(context)
-    } else {
-      // Fallback
-      response = {
-        success: true,
-        outcome: {
-          narrative: `${attacker.name} attacks ${defender.name}!`,
-          attackSuccess: true,
-          damage: Math.floor(Math.random() * 20) + 5,
-          criticalHit: Math.random() < 0.1
+    // Try Gemini API with fallback
+    let outcome
+    try {
+      if (this.geminiService && typeof this.geminiService.generateBattleOutcome === 'function') {
+        const response = await this.geminiService.generateBattleOutcome(context)
+
+        // If API failed or returned no outcome, use fallback
+        if (!response.success || !response.outcome) {
+          console.warn('Gemini API returned unsuccessful response, using fallback')
+          outcome = this.generateLocalBattleOutcome(attacker, defender)
+        } else {
+          outcome = response.outcome
         }
+      } else {
+        // No Gemini service available
+        outcome = this.generateLocalBattleOutcome(attacker, defender)
       }
+    } catch (error) {
+      // API error - use fallback
+      console.warn('Gemini API error, using fallback:', error)
+      outcome = this.generateLocalBattleOutcome(attacker, defender)
     }
 
     this.hideLoadingIndicator()
 
-    if (response.success && response.outcome) {
-      const outcome = response.outcome
+    // Update battle log
+    this.battleLog.push(`[Exchange ${exchangeNumber}/5] ${outcome.narrative}`)
 
-      // Update battle log
-      this.battleLog.push(`[Exchange ${exchangeNumber}/5] ${outcome.narrative}`)
+    // Apply damage
+    if (outcome.attackSuccess) {
+      defender.health = Math.max(0, defender.health - outcome.damage)
 
-      // Apply damage
-      if (outcome.attackSuccess) {
-        defender.health = Math.max(0, defender.health - outcome.damage)
-
-        if (outcome.criticalHit) {
-          this.showCriticalHitEffect(defender)
-        }
+      if (outcome.criticalHit) {
+        this.showCriticalHitEffect(defender)
       }
+    }
 
-      // Update display
-      this.updateHealthBars()
-      const centerX = this.cameras.main.width / 2
-      const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
-      this.updateBattleLog(centerX, logStartY, 10)
+    // Update display
+    this.updateHealthBars()
+    const centerX = this.cameras.main.width / 2
+    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+    this.updateBattleLog(centerX, logStartY, 10)
+  }
+
+  private generateLocalBattleOutcome(attacker: Hero, defender: Hero) {
+    // Calculate base damage using hero stats
+    const baseDamage = Math.max(
+      attacker.attributes.strength,
+      attacker.attributes.intelligence
+    )
+
+    // Apply defense reduction
+    const damageReduction = defender.attributes.defense * 0.4
+    const calculatedDamage = Math.max(3, Math.floor(baseDamage - damageReduction))
+
+    // Calculate hit chance based on accuracy vs agility
+    const hitChance = 0.6 + (attacker.attributes.accuracy - defender.attributes.agility) * 0.05
+    const attackSuccess = Math.random() < Math.max(0.3, Math.min(0.95, hitChance))
+
+    // Determine attack type
+    const attackType = attacker.attributes.intelligence > attacker.attributes.strength ? 'magic' : 'melee'
+
+    // Check for critical hit
+    const criticalHit = attackSuccess &&
+      attacker.attributes.accuracy >= 7 &&
+      (attacker.attributes.strength >= 7 || attacker.attributes.intelligence >= 7) &&
+      Math.random() < 0.15
+
+    const finalDamage = attackSuccess ? (criticalHit ? Math.floor(calculatedDamage * 1.5) : calculatedDamage) : 0
+
+    // Generate narrative based on outcome
+    let narrative = ''
+    if (!attackSuccess) {
+      const missTemplates = [
+        `${defender.name} dodges ${attacker.name}'s attack`,
+        `${attacker.name} misses ${defender.name}`,
+        `${defender.name} blocks the strike`
+      ]
+      narrative = missTemplates[Math.floor(Math.random() * missTemplates.length)]
+    } else if (criticalHit) {
+      const critTemplates = [
+        `${attacker.name} lands a CRITICAL hit on ${defender.name}!`,
+        `${attacker.name} strikes ${defender.name} with devastating force!`,
+        `${defender.name} takes a brutal hit from ${attacker.name}!`
+      ]
+      narrative = critTemplates[Math.floor(Math.random() * critTemplates.length)]
+    } else if (attackType === 'magic') {
+      const magicTemplates = [
+        `${attacker.name} blasts ${defender.name} with magic`,
+        `${attacker.name} casts a spell hitting ${defender.name}`,
+        `${defender.name} takes magical damage from ${attacker.name}`
+      ]
+      narrative = magicTemplates[Math.floor(Math.random() * magicTemplates.length)]
+    } else {
+      const meleeTemplates = [
+        `${attacker.name} strikes ${defender.name}`,
+        `${attacker.name} hits ${defender.name} hard`,
+        `${defender.name} takes ${finalDamage} damage from ${attacker.name}`
+      ]
+      narrative = meleeTemplates[Math.floor(Math.random() * meleeTemplates.length)]
+    }
+
+    return {
+      narrative,
+      damage: Math.min(30, finalDamage),
+      attackSuccess,
+      criticalHit,
+      attackType
     }
   }
 

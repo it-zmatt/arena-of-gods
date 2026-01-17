@@ -114,13 +114,13 @@ OUTPUT ONLY THE JSON, NO ADDITIONAL TEXT.`
   /**
    * Call Gemini API with timeout and retry logic
    */
-  private async callGeminiAPI(prompt: string, retries = 2): Promise<any> {
+  private async callGeminiAPI(prompt: string, retries = 1): Promise<any> {
     const url = `https://generativelanguage.googleapis.com/v1/models/${this.model}:generateContent?key=${this.apiKey}`
 
     for (let i = 0; i <= retries; i++) {
       try {
         const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 5000) // 5s timeout
+        const timeout = setTimeout(() => controller.abort(), 4000) // 4s timeout (shorter for faster fallback)
 
         const response = await fetch(url, {
           method: 'POST',
@@ -131,7 +131,7 @@ OUTPUT ONLY THE JSON, NO ADDITIONAL TEXT.`
             }],
             generationConfig: {
               temperature: 0.7,     // Balance creativity and consistency
-              maxOutputTokens: 200, // Keep responses concise
+              maxOutputTokens: 150, // Keep responses concise to save quota
               topP: 0.9,
               topK: 40
             }
@@ -142,15 +142,36 @@ OUTPUT ONLY THE JSON, NO ADDITIONAL TEXT.`
         clearTimeout(timeout)
 
         if (!response.ok) {
+          const errorText = await response.text()
+
+          // Check for rate limit errors (429)
+          if (response.status === 429) {
+            console.warn('Gemini API rate limit exceeded')
+            throw new Error('Rate limit exceeded')
+          }
+
+          // Check for quota exceeded errors
+          if (errorText.includes('quota') || errorText.includes('RESOURCE_EXHAUSTED')) {
+            console.warn('Gemini API quota exhausted')
+            throw new Error('Quota exhausted')
+          }
+
           throw new Error(`Gemini API error: ${response.status} ${response.statusText}`)
         }
 
         return await response.json()
 
       } catch (error) {
+        // Don't retry on rate limit or quota errors - fail fast to fallback
+        if (error instanceof Error &&
+            (error.message.includes('Rate limit') || error.message.includes('Quota'))) {
+          throw error
+        }
+
         if (i === retries) throw error
-        // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
+
+        // Shorter exponential backoff for faster fallback
+        await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)))
       }
     }
   }
