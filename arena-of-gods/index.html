@@ -7,7 +7,38 @@
     <title>arena-of-gods</title>
   </head>
   <body class="bg-slate-900 text-white">
-  <div id="game-root"></div>
+  	<div id="game-root">
+
+		<div
+		id="start-ui"
+		class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/70 text-white"
+		>
+		<h1 class="text-4xl font-bold tracking-wide">
+			Arena of Gods
+		</h1>
+
+		<input
+			id="player1"
+			type="text"
+			placeholder="Player 1 Name"
+			class="px-4 py-2 rounded text-black w-64"
+		/>
+
+		<input
+			id="player2"
+			type="text"
+			placeholder="Player 2 Name"
+			class="px-4 py-2 rounded text-black w-64"
+		/>
+
+		<button
+			id="start-btn"
+			class="mt-4 px-6 py-2 bg-yellow-500 text-black rounded font-semibold hover:bg-yellow-400"
+		>
+			Start Game
+		</button>
+		</div>
+	</div>
 
   <script type="module" src="/src/main.ts"></script>
 </html>
