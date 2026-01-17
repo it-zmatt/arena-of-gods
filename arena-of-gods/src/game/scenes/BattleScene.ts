@@ -1,4 +1,6 @@
 import Phaser from 'phaser'
+import GeminiService from '../services/GeminiService'
+import type { CombatContext, HeroContext } from '../types/gemini'
 
 const BACKGROUNDS = ['forest', 'river', 'volcanic_river', 'plains', 'fortress']
 const HEROES = [
@@ -44,9 +46,15 @@ export default class BattleScene extends Phaser.Scene {
   private heroStartY!: number
   private battleTimer!: Phaser.Time.TimerEvent
   private battleEnded: boolean = false
+  private geminiService!: GeminiService
+  private characterMetadata!: Array<any>
+  private isProcessingTurn: boolean = false
+  private currentEnvironment!: string
+  private loadingText?: Phaser.GameObjects.Text
 
   constructor() {
     super('BattleScene')
+    this.geminiService = new GeminiService()
   }
 
   init(data: { player1Name: string; player2Name: string }) {
@@ -63,13 +71,19 @@ export default class BattleScene extends Phaser.Scene {
     HEROES.forEach((hero) => {
       this.load.image(hero.id, `src/assets/characters/${hero.id}.png`)
     })
+    // Load character metadata for AI context
+    this.load.json('characterData', 'src/characters.json')
   }
 
   create() {
     const { width, height } = this.cameras.main
 
+    // Load character metadata
+    this.characterMetadata = this.cache.json.get('characterData').characters
+
     // Random background
     const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
+    this.currentEnvironment = randomBg
     const bg = this.add.image(0, 0, `bg_${randomBg}`).setOrigin(0, 0)
     bg.setDisplaySize(width, height)
 
@@ -365,56 +379,83 @@ export default class BattleScene extends Phaser.Scene {
     })
   }
 
-  private simulateBattleEvent() {
-    // Check if battle is already over
-    if (this.battleEnded) {
+  private async simulateBattleEvent() {
+    // Prevent concurrent API calls
+    if (this.isProcessingTurn || this.battleEnded) {
       return
     }
 
-    // Pick random attacker and defender
-    const attackerTeam = Math.random() > 0.5 ? this.player1Heroes : this.player2Heroes
-    const defenderTeam = attackerTeam === this.player1Heroes ? this.player2Heroes : this.player1Heroes
+    this.isProcessingTurn = true
 
-    // Filter out dead heroes
-    const aliveAttackers = attackerTeam.filter(h => h.health > 0)
-    const aliveDefenders = defenderTeam.filter(h => h.health > 0)
+    try {
+      // Pick random attacker and defender
+      const attackerTeam = Math.random() > 0.5 ? this.player1Heroes : this.player2Heroes
+      const defenderTeam = attackerTeam === this.player1Heroes ? this.player2Heroes : this.player1Heroes
 
-    if (aliveAttackers.length === 0 || aliveDefenders.length === 0) {
-      return
+      // Filter out dead heroes
+      const aliveAttackers = attackerTeam.filter(h => h.health > 0)
+      const aliveDefenders = defenderTeam.filter(h => h.health > 0)
+
+      if (aliveAttackers.length === 0 || aliveDefenders.length === 0) {
+        this.isProcessingTurn = false
+        return
+      }
+
+      const attacker = aliveAttackers[Math.floor(Math.random() * aliveAttackers.length)]
+      const defender = aliveDefenders[Math.floor(Math.random() * aliveDefenders.length)]
+
+      // Show loading indicator
+      this.showLoadingIndicator()
+
+      // Build context with character metadata
+      const context: CombatContext = {
+        attacker: this.buildHeroContext(attacker),
+        defender: this.buildHeroContext(defender),
+        turnNumber: this.currentTurn,
+        battleEnvironment: this.currentEnvironment
+      }
+
+      // Call Gemini API
+      const response = await this.geminiService.generateBattleOutcome(context)
+
+      this.hideLoadingIndicator()
+
+      if (!response.success) {
+        console.warn('Gemini API failed, using fallback')
+      }
+
+      const outcome = response.outcome!
+
+      // Update battle log with AI narrative
+      this.battleLog.push(outcome.narrative)
+
+      // Apply stat-based damage
+      if (outcome.attackSuccess) {
+        defender.health = Math.max(0, defender.health - outcome.damage)
+
+        if (outcome.criticalHit) {
+          this.showCriticalHitEffect(defender)
+        }
+      }
+
+      // Increment turn
+      this.currentTurn++
+      this.turnIndicator.setText(`Turn: ${this.currentTurn}`)
+
+      // Update display
+      this.updateHealthBars()
+      const centerX = this.cameras.main.width / 2
+      const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
+      this.updateBattleLog(centerX, logStartY, 10)
+
+      // Check if battle ended after this turn
+      this.checkBattleEnd()
+
+    } catch (error) {
+      console.error('Battle simulation error:', error)
+    } finally {
+      this.isProcessingTurn = false
     }
-
-    const attacker = aliveAttackers[Math.floor(Math.random() * aliveAttackers.length)]
-    const defender = aliveDefenders[Math.floor(Math.random() * aliveDefenders.length)]
-
-    // Generate battle events with actual hero names
-    const eventTemplates = [
-      `${attacker.name} attacks ${defender.name} with their sword`,
-      `${defender.name} takes an arrow from ${attacker.name}`,
-      `${attacker.name} casts a spell on ${defender.name}`,
-      `${defender.name} blocks ${attacker.name}'s attack`,
-      `${attacker.name} lands a critical hit on ${defender.name}`,
-      `${defender.name} dodges ${attacker.name}'s strike`,
-    ]
-
-    const randomEvent = eventTemplates[Math.floor(Math.random() * eventTemplates.length)]
-    this.battleLog.push(randomEvent)
-
-    // Apply damage
-    const damage = Math.floor(Math.random() * 20) + 5
-    defender.health = Math.max(0, defender.health - damage)
-
-    // Increment turn
-    this.currentTurn++
-    this.turnIndicator.setText(`Turn: ${this.currentTurn}`)
-
-    // Update display
-    this.updateHealthBars()
-    const centerX = this.cameras.main.width / 2
-    const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
-    this.updateBattleLog(centerX, logStartY, 10)
-
-    // Check if battle ended after this turn
-    this.checkBattleEnd()
   }
 
   private checkBattleEnd(): boolean {
@@ -495,6 +536,85 @@ export default class BattleScene extends Phaser.Scene {
           hero.heroImage.setAlpha(0.5)
         }
       }
+    })
+  }
+
+  private buildHeroContext(hero: Hero): HeroContext {
+    // Find matching character metadata
+    const metadata = this.characterMetadata.find(
+      char => char.name.toLowerCase().includes(hero.id.toLowerCase())
+    )
+
+    return {
+      id: hero.id,
+      name: hero.name,
+      fullName: metadata?.name || hero.name,
+      overview: metadata?.overview || '',
+      appearance: metadata?.appearance_clothing || '',
+      attributes: hero.attributes,
+      currentHealth: hero.health,
+      maxHealth: hero.maxHealth
+    }
+  }
+
+  private showLoadingIndicator() {
+    const centerX = this.cameras.main.width / 2
+    const centerY = this.cameras.main.height / 2
+
+    this.loadingText = this.add
+      .text(centerX, centerY - 250, '...', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '12px',
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+      .setAlpha(0)
+
+    // Fade in animation
+    this.tweens.add({
+      targets: this.loadingText,
+      alpha: 1,
+      duration: 300
+    })
+  }
+
+  private hideLoadingIndicator() {
+    if (this.loadingText) {
+      this.loadingText.destroy()
+      this.loadingText = undefined
+    }
+  }
+
+  private showCriticalHitEffect(defender: Hero) {
+    if (!defender.heroImage) return
+
+    // Flash effect
+    this.tweens.add({
+      targets: defender.heroImage,
+      alpha: 0.3,
+      duration: 100,
+      yoyo: true,
+      repeat: 2
+    })
+
+    // Screen shake
+    this.cameras.main.shake(200, 0.01)
+
+    // "CRITICAL!" text
+    const critText = this.add
+      .text(defender.heroImage.x, defender.heroImage.y - 50, 'CRITICAL!', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#ef4444'
+      })
+      .setOrigin(0.5)
+
+    this.tweens.add({
+      targets: critText,
+      y: critText.y - 30,
+      alpha: 0,
+      duration: 1000,
+      onComplete: () => critText.destroy()
     })
   }
 }
