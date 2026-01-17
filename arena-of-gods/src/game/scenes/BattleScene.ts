@@ -61,16 +61,10 @@ export default class BattleScene extends Phaser.Scene {
     HEROES.forEach((hero) => {
       this.load.image(hero.id, `src/assets/characters/${hero.id}.png`)
     })
-    // Load character metadata for AI context
-    this.load.json('characterData', 'src/characters.json')
   }
 
   create() {
     const { width, height } = this.cameras.main
-
-
-    // Load character metadata
-    this.characterMetadata = this.cache.json.get('characterData').characters
 
     // Random background
     const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
@@ -843,17 +837,15 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   private buildHeroContext(hero: Hero): HeroContext {
-    // Find matching character metadata
-    const metadata = this.characterMetadata.find(
-      char => char.name.toLowerCase().includes(hero.id.toLowerCase())
-    )
+    // Find matching hero data from HEROES constant
+    const heroData = HEROES.find(h => h.id === hero.id)
 
     return {
       id: hero.id,
       name: hero.name,
-      fullName: metadata?.name || hero.name,
-      overview: metadata?.overview || '',
-      appearance: metadata?.appearance_clothing || '',
+      fullName: heroData?.name || hero.name,
+      overview: heroData?.overview || '',
+      appearance: heroData?.appearance_clothing || '',
       attributes: hero.attributes,
       currentHealth: hero.health,
       maxHealth: hero.maxHealth
