@@ -45,9 +45,10 @@ export class StartScene extends Phaser.Scene {
     document.getElementById('start-ui')?.classList.add('hidden')
 
     // Move to next scene
-this.scene.start('HeroSelectScene', {
-  player1Name: 'Player One'
-})
+    this.scene.start('HeroSelectScene', {
+      player1Name: player1,
+      player2Name: player2
+    })
   }
 }
 
