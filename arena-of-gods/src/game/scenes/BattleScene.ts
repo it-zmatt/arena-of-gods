@@ -1,6 +1,8 @@
 import Phaser from 'phaser'
 import { HEROES } from '../constants/heroes'
 import type { HeroAttributes } from '../constants/heroes'
+import GeminiService from '../services/GeminiService'
+import type { CombatContext, HeroContext } from '../types/gemini'
 
 const BACKGROUNDS = ['forest', 'river', 'volcanic_river', 'plains', 'fortress']
 
@@ -39,8 +41,10 @@ export default class BattleScene extends Phaser.Scene {
   private healParticles!: Phaser.GameObjects.Particles.ParticleEmitter
   private deathParticles!: Phaser.GameObjects.Particles.ParticleEmitter
 
+
   constructor() {
     super('BattleScene')
+    this.geminiService = new GeminiService()
   }
 
   init(data: { player1Name: string; player2Name: string }) {
@@ -57,16 +61,20 @@ export default class BattleScene extends Phaser.Scene {
     HEROES.forEach((hero) => {
       this.load.image(hero.id, `src/assets/characters/${hero.id}.png`)
     })
+    // Load character metadata for AI context
+    this.load.json('characterData', 'src/characters.json')
   }
 
   create() {
     const { width, height } = this.cameras.main
 
-    // Fade in transition
-    this.cameras.main.fadeIn(500, 0, 0, 0)
+
+    // Load character metadata
+    this.characterMetadata = this.cache.json.get('characterData').characters
 
     // Random background
     const randomBg = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)]
+    this.currentEnvironment = randomBg
     const bg = this.add.image(0, 0, `bg_${randomBg}`).setOrigin(0, 0)
     bg.setDisplaySize(width, height)
 
@@ -553,194 +561,82 @@ export default class BattleScene extends Phaser.Scene {
     })
   }
 
-  private simulateBattleEvent() {
-    // Check if battle is already over
-    if (this.battleEnded) {
+  private async simulateBattleEvent() {
+    // Prevent concurrent API calls
+    if (this.isProcessingTurn || this.battleEnded) {
       return
     }
 
-    // Pick random attacker and defender
-    const attackerTeam = Math.random() > 0.5 ? this.player1Heroes : this.player2Heroes
-    const defenderTeam = attackerTeam === this.player1Heroes ? this.player2Heroes : this.player1Heroes
+    this.isProcessingTurn = true
 
-    // Filter out dead heroes
-    const aliveAttackers = attackerTeam.filter(h => h.health > 0)
-    const aliveDefenders = defenderTeam.filter(h => h.health > 0)
+    try {
+      // Pick random attacker and defender
+      const attackerTeam = Math.random() > 0.5 ? this.player1Heroes : this.player2Heroes
+      const defenderTeam = attackerTeam === this.player1Heroes ? this.player2Heroes : this.player1Heroes
 
-    if (aliveAttackers.length === 0 || aliveDefenders.length === 0) {
-      return
-    }
+      // Filter out dead heroes
+      const aliveAttackers = attackerTeam.filter(h => h.health > 0)
+      const aliveDefenders = defenderTeam.filter(h => h.health > 0)
 
-    const attacker = aliveAttackers[Math.floor(Math.random() * aliveAttackers.length)]
-    const defender = aliveDefenders[Math.floor(Math.random() * aliveDefenders.length)]
+      if (aliveAttackers.length === 0 || aliveDefenders.length === 0) {
+        this.isProcessingTurn = false
+        return
+      }
 
-    // Determine if it's a critical hit (10% chance)
-    const isCritical = Math.random() < 0.1
-    const baseDamage = Math.floor(Math.random() * 20) + 5
-    const damage = isCritical ? Math.floor(baseDamage * 1.5) : baseDamage
+      const attacker = aliveAttackers[Math.floor(Math.random() * aliveAttackers.length)]
+      const defender = aliveDefenders[Math.floor(Math.random() * aliveDefenders.length)]
 
-    // Generate battle events with actual hero names
-    const eventTemplates = [
-      `${attacker.name} attacks ${defender.name} with their sword`,
-      `${defender.name} takes an arrow from ${attacker.name}`,
-      `${attacker.name} casts a spell on ${defender.name}`,
-      `${defender.name} blocks ${attacker.name}'s attack`,
-      `${attacker.name} lands a critical hit on ${defender.name}!`,
-      `${defender.name} dodges ${attacker.name}'s strike`,
-    ]
+      // Show loading indicator
+      this.showLoadingIndicator()
 
-    const randomEvent = isCritical 
-      ? `${attacker.name} lands a CRITICAL HIT on ${defender.name}!`
-      : eventTemplates[Math.floor(Math.random() * eventTemplates.length)]
-    
-    this.battleLog.push(randomEvent)
+      // Build context with character metadata
+      const context: CombatContext = {
+        attacker: this.buildHeroContext(attacker),
+        defender: this.buildHeroContext(defender),
+        turnNumber: this.currentTurn,
+        battleEnvironment: this.currentEnvironment
+      }
 
-    // Animate attack
-    this.animateAttack(attacker, defender, damage, isCritical)
+      // Call Gemini API
+      const response = await this.geminiService.generateBattleOutcome(context)
 
-    // Apply damage after animation
-    this.time.delayedCall(300, () => {
-      defender.health = Math.max(0, defender.health - damage)
-      this.updateHealthBars()
-      
+      this.hideLoadingIndicator()
+
+      if (!response.success) {
+        console.warn('Gemini API failed, using fallback')
+      }
+
+      const outcome = response.outcome!
+
+      // Update battle log with AI narrative
+      this.battleLog.push(outcome.narrative)
+
+      // Apply stat-based damage
+      if (outcome.attackSuccess) {
+        defender.health = Math.max(0, defender.health - outcome.damage)
+
+        if (outcome.criticalHit) {
+          this.showCriticalHitEffect(defender)
+        }
+      }
+
       // Increment turn
       this.currentTurn++
       this.turnIndicator.setText(`Turn: ${this.currentTurn}`)
-      
-      // Animate turn indicator
-      this.tweens.add({
-        targets: this.turnIndicator,
-        scaleX: 1.2,
-        scaleY: 1.2,
-        duration: 200,
-        yoyo: true,
-        ease: 'Back.easeOut'
-      })
 
+      // Update display
+      this.updateHealthBars()
       const centerX = this.cameras.main.width / 2
       const logStartY = this.cameras.main.height / 2 + 50 - 300 / 2 + 50
       this.updateBattleLog(centerX, logStartY, 10)
 
       // Check if battle ended after this turn
       this.checkBattleEnd()
-    })
-  }
 
-  private animateAttack(attacker: Hero, defender: Hero, damage: number, isCritical: boolean) {
-    // Animate attacker (bounce forward)
-    if (attacker.heroImage) {
-      const attackerX = attacker.heroImage.x
-      const isPlayer1 = this.player1Heroes.includes(attacker)
-      
-      this.tweens.add({
-        targets: attacker.heroImage,
-        x: attackerX + (isPlayer1 ? 20 : -20),
-        scaleX: 1.1,
-        scaleY: 1.1,
-        duration: 150,
-        yoyo: true,
-        ease: 'Power2'
-      })
-
-      // Add glow effect to attacker
-      this.addGlowEffect(attacker, 0x44ff44, 200)
-    }
-
-    // Animate defender (shake on hit)
-    if (defender.heroImage) {
-      const defenderX = defender.heroImage.x
-      const defenderY = defender.heroImage.y
-      
-      this.tweens.add({
-        targets: defender.heroImage,
-        x: defenderX + (Math.random() - 0.5) * 10,
-        y: defenderY + (Math.random() - 0.5) * 10,
-        duration: 100,
-        repeat: 3,
-        yoyo: true,
-        ease: 'Power1'
-      })
-
-      // Flash red on hit
-      this.tweens.add({
-        targets: defender.heroImage,
-        tint: 0xff0000,
-        duration: 100,
-        yoyo: true,
-        repeat: 1
-      })
-
-      // Particle effects at defender position
-      if (isCritical) {
-        this.criticalParticles.setPosition(defenderX, defenderY)
-        this.criticalParticles.explode(30)
-      } else {
-        this.attackParticles.setPosition(defenderX, defenderY)
-        this.attackParticles.explode(15)
-      }
-    }
-
-    // Show damage number
-    this.showDamageNumber(defender, damage, isCritical)
-  }
-
-  private addGlowEffect(hero: Hero, color: number, duration: number) {
-    if (!hero.heroImage) return
-
-    const glow = this.add.graphics()
-    glow.lineStyle(4, color, 0.8)
-    glow.strokeCircle(hero.heroImage.x, hero.heroImage.y, 40)
-    
-    this.tweens.add({
-      targets: glow,
-      alpha: 0,
-      scaleX: 1.5,
-      scaleY: 1.5,
-      duration: duration,
-      onComplete: () => glow.destroy()
-    })
-  }
-
-  private showDamageNumber(hero: Hero, damage: number, isCritical: boolean) {
-    if (!hero.heroImage) return
-
-    const { x, y } = hero.heroImage
-    const color = isCritical ? '#ffd700' : '#ff4444'
-    const fontSize = isCritical ? '16px' : '12px'
-    
-    const damageText = this.add
-      .text(x, y - 30, `-${damage}${isCritical ? '!' : ''}`, {
-        fontFamily: '"Press Start 2P"',
-        fontSize: fontSize,
-        color: color,
-        stroke: '#000000',
-        strokeThickness: 4
-      })
-      .setOrigin(0.5)
-      .setShadow(2, 2, '#000000', 4)
-
-    // Animate damage number
-    this.tweens.add({
-      targets: damageText,
-      y: y - 80,
-      alpha: 0,
-      scaleX: isCritical ? 1.5 : 1.2,
-      scaleY: isCritical ? 1.5 : 1.2,
-      duration: 1000,
-      ease: 'Power2',
-      onComplete: () => damageText.destroy()
-    })
-
-    // Add bounce effect for critical
-    if (isCritical) {
-      this.tweens.add({
-        targets: damageText,
-        scaleX: 1.8,
-        scaleY: 1.8,
-        duration: 200,
-        yoyo: true,
-        ease: 'Back.easeOut'
-      })
+    } catch (error) {
+      console.error('Battle simulation error:', error)
+    } finally {
+      this.isProcessingTurn = false
     }
   }
 
@@ -943,6 +839,85 @@ export default class BattleScene extends Phaser.Scene {
           this.deathParticles.explode(20)
         }
       }
+    })
+  }
+
+  private buildHeroContext(hero: Hero): HeroContext {
+    // Find matching character metadata
+    const metadata = this.characterMetadata.find(
+      char => char.name.toLowerCase().includes(hero.id.toLowerCase())
+    )
+
+    return {
+      id: hero.id,
+      name: hero.name,
+      fullName: metadata?.name || hero.name,
+      overview: metadata?.overview || '',
+      appearance: metadata?.appearance_clothing || '',
+      attributes: hero.attributes,
+      currentHealth: hero.health,
+      maxHealth: hero.maxHealth
+    }
+  }
+
+  private showLoadingIndicator() {
+    const centerX = this.cameras.main.width / 2
+    const centerY = this.cameras.main.height / 2
+
+    this.loadingText = this.add
+      .text(centerX, centerY - 250, '...', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '12px',
+        color: '#fbbf24'
+      })
+      .setOrigin(0.5)
+      .setAlpha(0)
+
+    // Fade in animation
+    this.tweens.add({
+      targets: this.loadingText,
+      alpha: 1,
+      duration: 300
+    })
+  }
+
+  private hideLoadingIndicator() {
+    if (this.loadingText) {
+      this.loadingText.destroy()
+      this.loadingText = undefined
+    }
+  }
+
+  private showCriticalHitEffect(defender: Hero) {
+    if (!defender.heroImage) return
+
+    // Flash effect
+    this.tweens.add({
+      targets: defender.heroImage,
+      alpha: 0.3,
+      duration: 100,
+      yoyo: true,
+      repeat: 2
+    })
+
+    // Screen shake
+    this.cameras.main.shake(200, 0.01)
+
+    // "CRITICAL!" text
+    const critText = this.add
+      .text(defender.heroImage.x, defender.heroImage.y - 50, 'CRITICAL!', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#ef4444'
+      })
+      .setOrigin(0.5)
+
+    this.tweens.add({
+      targets: critText,
+      y: critText.y - 30,
+      alpha: 0,
+      duration: 1000,
+      onComplete: () => critText.destroy()
     })
   }
 }
