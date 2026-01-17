@@ -17,6 +17,8 @@ interface Hero {
   healthText?: Phaser.GameObjects.Text
   damageText?: Phaser.GameObjects.Text
   glowEffect?: Phaser.GameObjects.Graphics
+  cardBg?: Phaser.GameObjects.Graphics
+  nameText?: Phaser.GameObjects.Text
 }
 
 
@@ -259,11 +261,11 @@ export default class BattleScene extends Phaser.Scene {
       const y = this.heroStartY + index * heroSpacing
 
       // Hero card background
-      const cardBg = this.add.graphics()
-      cardBg.fillStyle(0x1e293b, 0.8)
-      cardBg.fillRect(this.leftColumnX - 150, y - 45, 300, 90)
-      cardBg.lineStyle(3, 0x475569)
-      cardBg.strokeRect(this.leftColumnX - 150, y - 45, 300, 90)
+      hero.cardBg = this.add.graphics()
+      hero.cardBg.fillStyle(0x1e293b, 0.8)
+      hero.cardBg.fillRect(this.leftColumnX - 150, y - 45, 300, 90)
+      hero.cardBg.lineStyle(3, 0x475569)
+      hero.cardBg.strokeRect(this.leftColumnX - 150, y - 45, 300, 90)
 
       // Hero image on the left
       hero.heroImage = this.add.image(this.leftColumnX - 115, y, hero.id)
@@ -275,7 +277,7 @@ export default class BattleScene extends Phaser.Scene {
       hero.heroImage.on('pointerdown', () => this.onHeroClick(hero, 'player1'))
 
       // Hero name - ensure it fits within the card
-      this.add
+      hero.nameText = this.add
         .text(this.leftColumnX - 35, y - 25, hero.name.toUpperCase(), {
           fontFamily: '"Press Start 2P"',
           fontSize: '11px',
@@ -318,11 +320,11 @@ export default class BattleScene extends Phaser.Scene {
       const y = this.heroStartY + index * heroSpacing
 
       // Hero card background
-      const cardBg = this.add.graphics()
-      cardBg.fillStyle(0x1e293b, 0.8)
-      cardBg.fillRect(this.rightColumnX - 150, y - 45, 300, 90)
-      cardBg.lineStyle(3, 0x475569)
-      cardBg.strokeRect(this.rightColumnX - 150, y - 45, 300, 90)
+      hero.cardBg = this.add.graphics()
+      hero.cardBg.fillStyle(0x1e293b, 0.8)
+      hero.cardBg.fillRect(this.rightColumnX - 150, y - 45, 300, 90)
+      hero.cardBg.lineStyle(3, 0x475569)
+      hero.cardBg.strokeRect(this.rightColumnX - 150, y - 45, 300, 90)
 
       // Hero image on the right
       hero.heroImage = this.add.image(this.rightColumnX + 115, y, hero.id)
@@ -334,7 +336,7 @@ export default class BattleScene extends Phaser.Scene {
       hero.heroImage.on('pointerdown', () => this.onHeroClick(hero, 'player2'))
 
       // Hero name - ensure it fits within the card
-      this.add
+      hero.nameText = this.add
         .text(this.rightColumnX + 35, y - 25, hero.name.toUpperCase(), {
           fontFamily: '"Press Start 2P"',
           fontSize: '11px',
@@ -1078,19 +1080,8 @@ export default class BattleScene extends Phaser.Scene {
           hero.healthBar.setFillStyle(0xef4444) // Red
         }
 
-        // Gray out dead heroes with animation
+        // Remove dead heroes' card completely
         if (hero.health <= 0 && hero.heroImage) {
-          this.tweens.add({
-            targets: hero.heroImage,
-            tint: 0x666666,
-            alpha: 0.3,
-            scaleX: 0.8,
-            scaleY: 0.8,
-            rotation: Math.PI / 4,
-            duration: 500,
-            ease: 'Power2'
-          })
-          
           // Death particles
           if (this.deathParticles && typeof this.deathParticles.setPosition === 'function') {
             this.deathParticles.setPosition(hero.heroImage.x, hero.heroImage.y)
@@ -1098,6 +1089,38 @@ export default class BattleScene extends Phaser.Scene {
               this.deathParticles.explode(20)
             }
           }
+
+          // Fade out and destroy all card elements
+          const elementsToRemove = [
+            hero.cardBg,
+            hero.heroImage,
+            hero.nameText,
+            hero.healthBarBg,
+            hero.healthBar,
+            hero.healthText
+          ].filter(el => el !== undefined)
+
+          elementsToRemove.forEach(element => {
+            if (element) {
+              this.tweens.add({
+                targets: element,
+                alpha: 0,
+                duration: 500,
+                ease: 'Power2',
+                onComplete: () => {
+                  element.destroy()
+                }
+              })
+            }
+          })
+
+          // Clear references
+          hero.cardBg = undefined
+          hero.heroImage = undefined
+          hero.nameText = undefined
+          hero.healthBarBg = undefined
+          hero.healthBar = undefined
+          hero.healthText = undefined
         }
       }
     })
@@ -1127,19 +1150,8 @@ export default class BattleScene extends Phaser.Scene {
           hero.healthBar.setFillStyle(0xef4444) // Red
         }
 
-        // Gray out dead heroes with animation
+        // Remove dead heroes' card completely
         if (hero.health <= 0 && hero.heroImage) {
-          this.tweens.add({
-            targets: hero.heroImage,
-            tint: 0x666666,
-            alpha: 0.3,
-            scaleX: 0.8,
-            scaleY: 0.8,
-            rotation: -Math.PI / 4,
-            duration: 500,
-            ease: 'Power2'
-          })
-          
           // Death particles
           if (this.deathParticles && typeof this.deathParticles.setPosition === 'function') {
             this.deathParticles.setPosition(hero.heroImage.x, hero.heroImage.y)
@@ -1147,6 +1159,38 @@ export default class BattleScene extends Phaser.Scene {
               this.deathParticles.explode(20)
             }
           }
+
+          // Fade out and destroy all card elements
+          const elementsToRemove = [
+            hero.cardBg,
+            hero.heroImage,
+            hero.nameText,
+            hero.healthBarBg,
+            hero.healthBar,
+            hero.healthText
+          ].filter(el => el !== undefined)
+
+          elementsToRemove.forEach(element => {
+            if (element) {
+              this.tweens.add({
+                targets: element,
+                alpha: 0,
+                duration: 500,
+                ease: 'Power2',
+                onComplete: () => {
+                  element.destroy()
+                }
+              })
+            }
+          })
+
+          // Clear references
+          hero.cardBg = undefined
+          hero.heroImage = undefined
+          hero.nameText = undefined
+          hero.healthBarBg = undefined
+          hero.healthBar = undefined
+          hero.healthText = undefined
         }
       }
     })
