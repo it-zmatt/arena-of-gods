@@ -79,9 +79,9 @@ export default class HeroSelectScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     // Hero cards section (non-interactive display)
-    const cardWidth = 160
-    const cardHeight = 240
-    const spacing = 25
+    const cardWidth = 180
+    const cardHeight = 260
+    const spacing = 30
     const totalWidth = HEROES.length * cardWidth + (HEROES.length - 1) * spacing
     const startX = (width - totalWidth) / 2 + cardWidth / 2
     const cardY = height / 2 + 30
@@ -121,19 +121,20 @@ export default class HeroSelectScene extends Phaser.Scene {
       const scale = Math.min((cardWidth - 30) / charImage.width, (cardHeight - 80) / charImage.height)
       charImage.setScale(scale)
 
-      // Name plate background
+      // Name plate background - wider to accommodate longer names
       const namePlateBg = this.add
-        .rectangle(0, cardHeight / 2 - 30, cardWidth - 10, 36, 0x0f172a)
+        .rectangle(0, cardHeight / 2 - 30, cardWidth - 20, 40, 0x0f172a)
         .setStrokeStyle(2, 0x475569)
 
-      // Hero name
+      // Hero name - use smaller font and ensure it fits
       const nameText = this.add
         .text(0, cardHeight / 2 - 30, hero.name.toUpperCase(), {
           fontFamily: '"Press Start 2P"',
-          fontSize: '11px',
-          color: '#fbbf24'
+          fontSize: '9px',
+          color: '#fbbf24',
+          wordWrap: { width: cardWidth - 30, useAdvancedWrap: true }
         })
-        .setOrigin(0.5)
+        .setOrigin(0.5, 0.5)
         .setShadow(2, 2, '#000000', 2)
 
       container.add([shadow, cardBg, cardInner, outerBorder, border, charImage, namePlateBg, nameText])

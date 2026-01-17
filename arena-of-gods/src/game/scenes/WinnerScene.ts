@@ -21,6 +21,12 @@ export default class WinnerScene extends Phaser.Scene {
     // Fade in transition
     this.cameras.main.fadeIn(800, 0, 0, 0)
 
+    // Stop fight music when game ends
+    const fightMusic = this.sound.get('fightMusic')
+    if (fightMusic && fightMusic.isPlaying) {
+      fightMusic.stop()
+    }
+
     // Animated background
     const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x0f172a)
     this.tweens.add({

@@ -188,11 +188,15 @@ export default class HeroLevelUpScene extends Phaser.Scene {
     const attributeNames = ['Strength', 'Defense', 'Intelligence', 'Accuracy', 'Agility', 'Stamina']
     const attributeKeys: (keyof HeroAttributes)[] = ['strength', 'defense', 'intelligence', 'accuracy', 'agility', 'stamina']
 
-    // Attributes title
+    // Attributes title - ensure it fits with proper padding
+    const attrTitleBg = this.add
+      .rectangle(attrX, attrStartY - 40, 300, 30, 0x0f172a)
+      .setStrokeStyle(2, 0xfbbf24)
+    
     this.add
       .text(attrX, attrStartY - 40, 'ATTRIBUTES', {
         fontFamily: '"Press Start 2P"',
-        fontSize: '12px',
+        fontSize: '11px',
         color: '#fbbf24'
       })
       .setOrigin(0.5)
@@ -202,26 +206,26 @@ export default class HeroLevelUpScene extends Phaser.Scene {
       const y = attrStartY + index * attrSpacing
       const key = attributeKeys[index]
 
-      // Attribute row background
-      this.add.rectangle(attrX, y, 280, 36, 0x1e293b)
+      // Attribute row background - wider to fit all content
+      this.add.rectangle(attrX, y, 320, 36, 0x1e293b)
         .setStrokeStyle(2, 0x475569)
 
-      // Attribute name
+      // Attribute name - left aligned with padding
       this.add
-        .text(attrX - 100, y, name, {
+        .text(attrX - 130, y, name, {
           fontFamily: '"Press Start 2P"',
           fontSize: '9px',
           color: '#e2e8f0'
         })
         .setOrigin(0, 0.5)
 
-      // Minus button
-      const minusBtn = this.add.rectangle(attrX + 60, y, 32, 28, 0x991b1b)
+      // Minus button - adjusted position
+      const minusBtn = this.add.rectangle(attrX + 70, y, 32, 28, 0x991b1b)
         .setStrokeStyle(2, 0xef4444)
         .setInteractive({ useHandCursor: true })
 
       this.add
-        .text(attrX + 60, y, '-', {
+        .text(attrX + 70, y, '-', {
           fontFamily: '"Press Start 2P"',
           fontSize: '14px',
           color: '#ffffff'
@@ -250,7 +254,7 @@ export default class HeroLevelUpScene extends Phaser.Scene {
           })
           
           // Particle effect
-          this.createAttributeParticle(attrX + 60, y, 0x44ff44, false)
+          this.createAttributeParticle(attrX + 70, y, 0x44ff44, false)
           
           this.updateAttributeDisplay()
           this.updateCreditsDisplay()
@@ -258,7 +262,7 @@ export default class HeroLevelUpScene extends Phaser.Scene {
           // Shake animation when can't decrease
           this.tweens.add({
             targets: minusBtn,
-            x: attrX + 60 + (Math.random() - 0.5) * 5,
+            x: attrX + 70 + (Math.random() - 0.5) * 5,
             duration: 100,
             repeat: 3,
             yoyo: true
@@ -266,9 +270,9 @@ export default class HeroLevelUpScene extends Phaser.Scene {
         }
       })
 
-      // Value text
+      // Value text - adjusted position
       const valueText = this.add
-        .text(attrX + 100, y, '1', {
+        .text(attrX + 110, y, '1', {
           fontFamily: '"Press Start 2P"',
           fontSize: '12px',
           color: '#fbbf24'
@@ -277,13 +281,13 @@ export default class HeroLevelUpScene extends Phaser.Scene {
 
       this.attributeValueTexts.push(valueText)
 
-      // Plus button
-      const plusBtn = this.add.rectangle(attrX + 140, y, 32, 28, 0x166534)
+      // Plus button - adjusted position
+      const plusBtn = this.add.rectangle(attrX + 150, y, 32, 28, 0x166534)
         .setStrokeStyle(2, 0x22c55e)
         .setInteractive({ useHandCursor: true })
 
       this.add
-        .text(attrX + 140, y, '+', {
+        .text(attrX + 150, y, '+', {
           fontFamily: '"Press Start 2P"',
           fontSize: '14px',
           color: '#ffffff'
@@ -345,7 +349,7 @@ export default class HeroLevelUpScene extends Phaser.Scene {
           // Shake animation when no credits
           this.tweens.add({
             targets: plusBtn,
-            x: attrX + 140 + (Math.random() - 0.5) * 5,
+            x: attrX + 150 + (Math.random() - 0.5) * 5,
             duration: 100,
             repeat: 3,
             yoyo: true

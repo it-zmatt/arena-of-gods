@@ -69,6 +69,8 @@ export default class BattleScene extends Phaser.Scene {
     HEROES.forEach((hero) => {
       this.load.image(hero.id, `src/assets/characters/${hero.id}.png`)
     })
+    // Load fight music
+    this.load.audio('fightMusic', 'src/sound track/fight.mp3')
   }
 
   create() {
@@ -76,6 +78,24 @@ export default class BattleScene extends Phaser.Scene {
 
     // Fade in transition
     this.cameras.main.fadeIn(500, 0, 0, 0)
+
+    // Stop background music and start fight music
+    const backgroundMusic = this.sound.get('backgroundMusic')
+    if (backgroundMusic && backgroundMusic.isPlaying) {
+      backgroundMusic.stop()
+    }
+    
+    // Play fight music on loop
+    if (!this.sound.get('fightMusic')) {
+      const fightMusic = this.sound.add('fightMusic', { loop: true, volume: 0.5 })
+      fightMusic.play()
+      this.registry.set('fightMusic', fightMusic)
+    } else {
+      const fightMusic = this.sound.get('fightMusic') as Phaser.Sound.BaseSound
+      if (!fightMusic.isPlaying) {
+        fightMusic.play()
+      }
+    }
 
     // Initialize Gemini service if available
     try {
@@ -254,12 +274,13 @@ export default class BattleScene extends Phaser.Scene {
       // Add click handler for hero selection
       hero.heroImage.on('pointerdown', () => this.onHeroClick(hero, 'player1'))
 
-      // Hero name
+      // Hero name - ensure it fits within the card
       this.add
         .text(this.leftColumnX - 45, y - 15, hero.name.toUpperCase(), {
           fontFamily: '"Press Start 2P"',
-          fontSize: '10px',
-          color: '#fbbf24'
+          fontSize: '8px',
+          color: '#fbbf24',
+          wordWrap: { width: 140, useAdvancedWrap: true }
         })
         .setOrigin(0, 0.5)
 
@@ -281,14 +302,15 @@ export default class BattleScene extends Phaser.Scene {
         )
         .setOrigin(0, 0.5)
 
-      // Health text
+      // Health text - centered on health bar
       hero.healthText = this.add
         .text(this.leftColumnX + 30, y + 10, `${Math.ceil(hero.health)}/${hero.maxHealth}`, {
           fontFamily: '"Press Start 2P"',
-          fontSize: '8px',
+          fontSize: '7px',
           color: '#ffffff'
         })
         .setOrigin(0.5)
+        .setShadow(1, 1, '#000000', 2)
     })
 
     // Player 2 Heroes
@@ -311,12 +333,13 @@ export default class BattleScene extends Phaser.Scene {
       // Add click handler for hero selection
       hero.heroImage.on('pointerdown', () => this.onHeroClick(hero, 'player2'))
 
-      // Hero name
+      // Hero name - ensure it fits within the card
       this.add
         .text(this.rightColumnX + 45, y - 15, hero.name.toUpperCase(), {
           fontFamily: '"Press Start 2P"',
-          fontSize: '10px',
-          color: '#fbbf24'
+          fontSize: '8px',
+          color: '#fbbf24',
+          wordWrap: { width: 140, useAdvancedWrap: true }
         })
         .setOrigin(1, 0.5)
 
@@ -338,14 +361,15 @@ export default class BattleScene extends Phaser.Scene {
         )
         .setOrigin(0, 0.5)
 
-      // Health text
+      // Health text - centered on health bar
       hero.healthText = this.add
         .text(this.rightColumnX - 30, y + 10, `${Math.ceil(hero.health)}/${hero.maxHealth}`, {
           fontFamily: '"Press Start 2P"',
-          fontSize: '8px',
+          fontSize: '7px',
           color: '#ffffff'
         })
         .setOrigin(0.5)
+        .setShadow(1, 1, '#000000', 2)
     })
 
     // Center Section - Battle Log Panel
@@ -378,19 +402,20 @@ export default class BattleScene extends Phaser.Scene {
     // Display battle log
     this.updateBattleLog(centerColumnX, narrativeStartY, maxLogLines)
 
-    // Back button (top left corner)
+    // Back button (top left corner) - consistent styling
     const backButton = this.add
       .rectangle(50, 30, 120, 40, 0x6b7280)
-      .setStrokeStyle(2, 0x9ca3af)
+      .setStrokeStyle(3, 0x9ca3af)
       .setInteractive({ useHandCursor: true })
 
     this.add
       .text(50, 30, 'BACK', {
+        fontFamily: '"Press Start 2P"',
         fontSize: '14px',
-        color: '#ffffff',
-        fontStyle: 'bold'
+        color: '#ffffff'
       })
       .setOrigin(0.5)
+      .setShadow(2, 2, '#000000', 2)
 
     backButton.on('pointerover', () => {
       backButton.setFillStyle(0x9ca3af)
