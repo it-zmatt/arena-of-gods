@@ -2,6 +2,152 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== PIXEL ART MENU STYLES ===== */
+
+.pixel-font {
+  font-family: 'Press Start 2P', cursive;
+}
+
+/* Menu panels with pixel border effect */
+.menu-panel {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+  border: 4px solid #fbbf24;
+  box-shadow:
+    0 0 0 2px #0f172a,
+    0 0 0 4px #f59e0b,
+    8px 8px 0 rgba(0, 0, 0, 0.5);
+  padding: 1.5rem 2rem;
+  image-rendering: pixelated;
+}
+
+.title-panel {
+  text-align: center;
+  padding: 2rem 3rem;
+}
+
+.input-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 320px;
+}
+
+/* Pixel title styling */
+.pixel-title {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 1.75rem;
+  color: #fbbf24;
+  text-shadow:
+    3px 3px 0 #b45309,
+    -1px -1px 0 #fef3c7;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.pixel-subtitle {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.625rem;
+  color: #94a3b8;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.pixel-label {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.625rem;
+  color: #fbbf24;
+  margin-top: 0.5rem;
+}
+
+/* Pixel input fields */
+.pixel-input {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #1e293b;
+  border: 3px solid #475569;
+  color: #f1f5f9;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.pixel-input:focus {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
+}
+
+.pixel-input::placeholder {
+  color: #64748b;
+  font-size: 0.625rem;
+}
+
+/* Pixel button */
+.pixel-btn {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.875rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+  border: 4px solid #b45309;
+  color: #1e293b;
+  cursor: pointer;
+  box-shadow:
+    0 4px 0 #92400e,
+    0 6px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s, box-shadow 0.1s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pixel-btn:hover {
+  background: linear-gradient(180deg, #fcd34d 0%, #fbbf24 50%, #f59e0b 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 0 #92400e,
+    0 8px 0 rgba(0, 0, 0, 0.3);
+}
+
+.pixel-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 2px 0 #92400e,
+    0 3px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Hint text */
+.pixel-hint {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.5rem;
+  color: #64748b;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Hidden utility class */
+.hidden {
+  display: none !important;
+}
+
+/* Start UI overlay - ensure it's centered over the game canvas */
+#start-ui {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  z-index: 100;
+}
+
+/* ===== END PIXEL ART MENU STYLES ===== */
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
